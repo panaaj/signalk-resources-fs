@@ -53,7 +53,8 @@ module.exports= {
     getResources: function(type=null, item=null, params={}) {
         let result= {}
 		// ** process params
-        params= utils.processParameters(params)  	
+        params= utils.processParameters(params) 
+        if(params.error) { return params } 	
         try{
             if(item) { // return specified resource
                 result= JSON.parse(fs.readFileSync( path.join(this.resources[type].path, item) , 'utf8'))
@@ -107,28 +108,38 @@ module.exports= {
 	
     // ** save / delete (r.value==null) resource file
     setResource: function(r) {
-        if( !utils.isUUID(r.id) ) { return false }
-        let fname= r.id.substring(r.id.lastIndexOf(':')+1)
-        let p= path.join(this.resources[r.type].path, fname)
-        let action= (r.value===null) ? 'DELETE' : 'SAVE'
-        //console.log(`******  ${r.type}: ${action} -> ${fname} ******`)
-        if(r.value===null) { // ** delete file **
-            fs.unlink(p, err=> {
-                if(err) { console.log('Error deleting file!'); return false }
-                else { console.log('File deleted!')}
-            })
-			return true
-        }
-        else {  // ** add / update file
-            if( !utils.validateData(r) ) { console.log('failed validation') ; return false }
-            // ** test for valid SignalK value **
-            fs.writeFile(p, JSON.stringify(r.value), (err, res)=> {
-                if(err) { console.log(err); return false}
-                else { console.log(`** ${r.type} written to ${fname} **`) }
-            })
-			return true
-        }
-        
+        return new Promise( (resolve, reject)=> {
+            if( !utils.isUUID(r.id) ) { resolve(false) }
+            let fname= r.id.substring(r.id.lastIndexOf(':')+1)
+            let p= path.join(this.resources[r.type].path, fname)
+            let action= (r.value===null) ? 'DELETE' : 'SAVE'
+            //console.log(`******  ${r.type}: ${action} -> ${fname} ******`)
+            if(r.value===null) { // ** delete file **
+                fs.unlink(p, err=> {
+                    if(err) { 
+                        console.log('Error deleting resource file!')
+                        resolve(false) 
+                    }
+                    else { 
+                        console.log(`** DELETED: ${r.type} entry ${fname} **`)
+                        resolve(true) 
+                    }
+                })
+            }
+            else {  // ** add / update file
+                if( !utils.validateData(r) ) { console.log('failed validation') ; return false }
+                // ** test for valid SignalK value **
+                fs.writeFile(p, JSON.stringify(r.value), (err, res)=> {
+                    if(err) { 
+                        console.log(err)
+                        resolve(false) }
+                    else { 
+                        console.log(`** ${r.type} written to ${fname} **`); 
+                        resolve(true) 
+                    }
+                })
+            }
+        })       
     }
 	
 }

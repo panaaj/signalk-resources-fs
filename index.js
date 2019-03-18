@@ -16,6 +16,7 @@
 const pkg= require('./package.json')
 const db = require('./filestorage')
 const utils = require('./utils')
+const uuid = require('uuid/v4')
 
 module.exports= function (app) {
 
@@ -149,11 +150,11 @@ module.exports= function (app) {
                 if(r.error) { res.send( r.message ) }
                 else { res.json(r.data) }
             })   
-            router.post(`/resources/waypoints/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= {}
-				value[p[2]]= (req.body.value) ? req.body.value : req.body
+            router.post(`/resources/waypoints`, (req, res)=> {
+                let path= req.path.split('/').join('.')
+                let value= {}
+                let id= utils.uuidPrefix + uuid()
+				value[id]= (req.body.value) ? req.body.value : req.body
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -162,9 +163,11 @@ module.exports= function (app) {
                 ) )
             })              
             router.delete(`/resources/waypoints/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= null
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= null
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -188,11 +191,11 @@ module.exports= function (app) {
                 if(r.error) { res.send( r.message ) }
                 else { res.json(r.data) }
             })  
-            router.post(`/resources/routes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= {}
-				value[p[2]]=(req.body.value) ? req.body.value : req.body
+            router.post(`/resources/routes`, (req, res)=> {
+                let path= req.path.split('/').join('.')
+                let value= {}
+                let id= utils.uuidPrefix + uuid()
+				value[id]= (req.body.value) ? req.body.value : req.body
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -201,9 +204,11 @@ module.exports= function (app) {
                 ) )
             })              
             router.delete(`/resources/routes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= null
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= null
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -227,11 +232,11 @@ module.exports= function (app) {
                 if(r.error) { res.send( r.message ) }
                 else { res.json(r.data) }
             })
-            router.post(`/resources/notes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= {}
-				value[p[2]]= (req.body.value) ? req.body.value : req.body
+            router.post(`/resources/notes`, (req, res)=> {
+                let path= req.path.split('/').join('.')
+                let value= {}
+                let id= utils.uuidPrefix + uuid()
+				value[id]= (req.body.value) ? req.body.value : req.body
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -240,9 +245,11 @@ module.exports= function (app) {
                 ) )
             })              
             router.delete(`/resources/notes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= null
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= null
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -266,11 +273,11 @@ module.exports= function (app) {
                 if(r.error) { res.send( r.message ) }
                 else { res.json(r.data) }
             }) 
-            router.post(`/resources/regions/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= {}
-				value[p[2]]= (req.body.value) ? req.body.value : req.body
+            router.post(`/resources/regions`, (req, res)=> {
+                let path= req.path.split('/').join('.')
+                let value= {}
+                let id= utils.uuidPrefix + uuid()
+				value[id]= (req.body.value) ? req.body.value : req.body
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -279,9 +286,11 @@ module.exports= function (app) {
                 ) )
             })              
             router.delete(`/resources/regions/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.split('/')
-				let path= p.slice(0,2).join('.')
-				let value= null
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= null
 				res.json( actionResourceRequest(
                     'vessels.self',
                     path, 
@@ -392,11 +401,11 @@ module.exports= function (app) {
                 (path.indexOf('waypoints')!=-1 && config.API.waypoints) ||
                 (path.indexOf('notes')!=-1 && config.API.notes) ||
                 (path.indexOf('regions')!=-1 && config.API.regions) ) {
-            // ** get resource id and set type from path **
-            r.type= p[1].slice(0, p[1].length-1)
-			let v= Object.entries(value)
-            r.id= v[0][0]
-            r.value= v[0][1]
+            
+            r.type= p[1].slice(0, p[1].length-1)    // ** get resource type from path **
+			let v= Object.entries(value)            // ** value= { uuid: { resource_data} }
+            r.id= v[0][0]                           // uuid
+            r.value= v[0][1]                        // resource_data
             app.debug(r)  
             // ** test for valid resource identifier
             if( !utils.isUUID(r.id) ) {
@@ -422,18 +431,21 @@ module.exports= function (app) {
             case 'waypoint':
             case 'note':
             case 'region':
-            if(db.setResource(r)) { 
-                sendDelta(r)
-                return { state: 'COMPLETED', resultStatus: 200, statusCode: 200 } 
-            }
-            else {
-                return { 
-                    state: 'COMPLETED', 
-                    resultStatus: 502, 
-                    statusCode: 502,
-                    message: `Invalid resource data values!` 
-                }                    
-            } 
+                db.setResource(r).then(res=> { 
+                    if(res) { // OK
+                        sendDelta(r)
+                        return { state: 'COMPLETED', resultStatus: 200, statusCode: 200 } 
+                    }
+                    else {  // error
+                        return { 
+                            state: 'COMPLETED', 
+                            resultStatus: 502, 
+                            statusCode: 502,
+                            message: `Error updating resource!` 
+                        }                    
+                    }                 
+                })
+                break;
             default:
                 return { 
                     state: 'COMPLETED', 
