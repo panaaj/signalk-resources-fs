@@ -130,18 +130,18 @@ module.exports= {
         return false
     },
 
-    // ** returns point dist m at brng(in radians) from la1, lon1
+    // ** returns point dist(m) at brng(degrees) from lat1, lon1
     destCoordinate(lat1, lon1, brng, dist) {
         let a = 6378137, b = 6356752.3142, f = 1 / 298.257223563, // WGS-84
         // ellipsiod
-        s = dist, alpha1 = brng, sinAlpha1 = Math.sin(alpha1), cosAlpha1 = Math
-                .cos(alpha1), tanU1 = (1 - f) * Math.tan(lat1 * Math.PI/180), cosU1 = 1 / Math
-                .sqrt((1 + tanU1 * tanU1)), sinU1 = tanU1 * cosU1, sigma1 = Math
-                .atan2(tanU1, cosAlpha1), sinAlpha = cosU1 * sinAlpha1, cosSqAlpha = 1
-                - sinAlpha * sinAlpha, uSq = cosSqAlpha * (a * a - b * b) / (b * b), A = 1
-                + uSq / 16384 * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq))), B = uSq
-                / 1024 * (256 + uSq * (-128 + uSq * (74 - 47 * uSq))), sigma = s
-                / (b * A), sigmaP = 2 * Math.PI;
+        s= dist, alpha1= (brng * Math.PI/180), sinAlpha1 = Math.sin(alpha1), cosAlpha1 = Math
+            .cos(alpha1), tanU1 = (1 - f) * Math.tan(lat1 * Math.PI/180), cosU1 = 1 / Math
+            .sqrt((1 + tanU1 * tanU1)), sinU1 = tanU1 * cosU1, sigma1 = Math
+            .atan2(tanU1, cosAlpha1), sinAlpha = cosU1 * sinAlpha1, cosSqAlpha = 1
+            - sinAlpha * sinAlpha, uSq = cosSqAlpha * (a * a - b * b) / (b * b), A = 1
+            + uSq / 16384 * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq))), B = uSq
+            / 1024 * (256 + uSq * (-128 + uSq * (74 - 47 * uSq))), sigma = s
+            / (b * A), sigmaP = 2 * Math.PI;
         while (Math.abs(sigma - sigmaP) > 1e-12) {
             var cos2SigmaM = Math.cos(2 * sigma1 + sigma), sinSigma = Math
                     .sin(sigma), cosSigma = Math.cos(sigma), deltaSigma = B
@@ -177,9 +177,9 @@ module.exports= {
     
     // ** process query parameters
     processParameters: function(params) {
-		if(typeof params.maxcount !== 'undefined') {
-            if(isNaN(params.maxcount) ) { 
-                let s= `Error: max record count specified is not a number! (${params.maxcount})`
+		if(typeof params.limit !== 'undefined') {
+            if(isNaN(params.limit) ) { 
+                let s= `Error: max record count specified is not a number! (${params.limit})`
                 console.log(`*** ${s} ***`)
                 return {
                     error: true, 
@@ -187,22 +187,22 @@ module.exports= {
                     source: 'resources'
                 }                
             }
-            else { params.maxcount= parseInt(params.maxcount) }
+            else { params.limit= parseInt(params.limit) }
 		}
 		if(typeof params.geohash !== 'undefined') {
-			params.bounds= new GeoHash().decode(params.bounds)
+			params.geobounds= new GeoHash().decode(params.geobounds)
         }
-        if(typeof params.bounds !== 'undefined') {
-            let b= params.bounds.split(',')
+        if(typeof params.geobounds !== 'undefined') {
+            let b= params.geobounds.split(',')
             .map( i=> { if(!isNaN(i)) {return parseFloat(i) } })
             .filter( i=> { if(i) return i })
             if(b.length==4) {
-                params.bounds= { sw: [b[0], b[1]], ne: [b[2], b[3] ] } 
+                params.geobounds= { sw: [b[0], b[1]], ne: [b[2], b[3] ] } 
             }
             else {
-                let s=`Error: Bounds contains invalid coordinate value (${params.bounds})`
+                let s=`Error: GeoBounds contains invalid coordinate value (${params.geobounds})`
                 console.log(`*** ${s} ***`)
-                params.bounds= null 
+                params.geobounds= null 
                 return {
                     error: true, 
                     message: s,
@@ -210,9 +210,9 @@ module.exports= {
                 } 
             }
         }	
-        if(typeof params.distance !=='undefined' && params.position) {
-            if(isNaN(params.distance) ) { 
-                let s= `Error: distance specified is not a number! (${this.distance})`
+        if(typeof params.geobox !=='undefined' && params.position) {
+            if(isNaN(params.geobox) ) { 
+                let s= `Error: GeoBox radius specified is not a number! (${params.geobox})`
                 console.log(`*** ${s} ***`)
                 return {
                     error: true, 
@@ -220,10 +220,10 @@ module.exports= {
                     source: 'resources'
                 }                
             }
-            let d= Math.sqrt( Math.pow(params.distance,2) + Math.pow(params.distance,2) )
-            params.bounds= { 
-                sw: utils.destCoordinate(params.position[1], params.position[0], 225 * Math.PI/180, d),
-                ne: utils.destCoordinate(params.position[1], params.position[0], 45 * Math.PI/180, d) 
+            let d= Math.sqrt( Math.pow(params.geobox,2) + Math.pow(params.geobox,2) )
+            params.geobounds= { 
+                sw: utils.destCoordinate(params.position[1], params.position[0], 225, d),
+                ne: utils.destCoordinate(params.position[1], params.position[0], 45, d) 
             } 
         }	 
         

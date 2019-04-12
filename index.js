@@ -61,12 +61,9 @@ module.exports= function (app) {
                 app.debug(`** ${plugin.name} started... ${(!res.error) ? 'OK' : 'with errors!'}`)     
             })
             .catch( e=> { app.debug(e) } )
-            
-            // **register HTTP PUT handlers
-            if(app.registerActionHandler) {
-                app.debug('** Registering PUT Action Handler(s) **')
-                setupPUTHandlers() 
-            }  
+
+            // ** initialise Delta PUT handlers **
+            setupDeltaPUT()
         } 
         catch (e) {
             app.setProviderError(`Started with errors!`)
@@ -133,8 +130,43 @@ module.exports= function (app) {
         }
     }
 
-    // *** set up **************************************
+    // *** SETUP ROUTE HANDLING **************************************
+
+    // ** register DELTA PUT handlers **
+    function setupDeltaPUT() {
+        if(app.registerActionHandler) {
+            app.debug('** Registering DELTA Action Handler(s) **')
+
+            app.registerActionHandler(
+                'vessels.self',
+                'resources.routes',
+                doActionHandler
+            )  
+            app.registerActionHandler(
+                'vessels.self',
+                'resources.waypoints',
+                doActionHandler
+            )  
+            app.registerActionHandler(
+                'vessels.self',
+                'resources.notes',
+                doActionHandler
+            )  
+            app.registerActionHandler(
+                'vessels.self',
+                'resources.regions',
+                doActionHandler
+            )                                  
+        }         
+    }
+
+    // ** DELTA PUT action handler **
+    function doActionHandler(context, path, value, cb) { 
+		app.debug('DELTA PUT ACTION')
+		return actionResourceRequest( path, value) 
+	}
    
+    // ** handle resources routes **
     plugin.signalKApiRoutes= router=> {
         if(config.API.waypoints) {
             app.debug('** Registering Waypoint routes **')
@@ -154,26 +186,24 @@ module.exports= function (app) {
                 let path= req.path.split('/').join('.')
                 let value= {}
                 let id= utils.uuidPrefix + uuid()
-				value[id]= (req.body.value) ? req.body.value : req.body
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
-            })              
+				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            }) 
+            router.put(`/resources/waypoints/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            })                                    
             router.delete(`/resources/waypoints/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
                 let p= req.path.slice(1).split('/')
                 let path= p.slice(0,2).join('.')               
                 let id= p[2]
                 let value= {}
                 value[id]= null
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
+				res.json( actionResourceRequest( path, value) )
             })
         }
         
@@ -195,26 +225,24 @@ module.exports= function (app) {
                 let path= req.path.split('/').join('.')
                 let value= {}
                 let id= utils.uuidPrefix + uuid()
-				value[id]= (req.body.value) ? req.body.value : req.body
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
-            })              
+				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            })   
+            router.put(`/resources/routes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            })                         
             router.delete(`/resources/routes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
                 let p= req.path.slice(1).split('/')
                 let path= p.slice(0,2).join('.')               
                 let id= p[2]
                 let value= {}
                 value[id]= null
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
+				res.json( actionResourceRequest( path, value) )
             })      
         }  
         
@@ -236,26 +264,24 @@ module.exports= function (app) {
                 let path= req.path.split('/').join('.')
                 let value= {}
                 let id= utils.uuidPrefix + uuid()
-				value[id]= (req.body.value) ? req.body.value : req.body
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
-            })              
+				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            })   
+            router.put(`/resources/notes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            })                         
             router.delete(`/resources/notes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
                 let p= req.path.slice(1).split('/')
                 let path= p.slice(0,2).join('.')               
                 let id= p[2]
                 let value= {}
                 value[id]= null
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
+				res.json( actionResourceRequest( path, value) )
             })
         }
 
@@ -277,68 +303,31 @@ module.exports= function (app) {
                 let path= req.path.split('/').join('.')
                 let value= {}
                 let id= utils.uuidPrefix + uuid()
-				value[id]= (req.body.value) ? req.body.value : req.body
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
-            })              
+				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            })   
+            router.put(`/resources/regions/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
+                let p= req.path.slice(1).split('/')
+                let path= p.slice(0,2).join('.')               
+                let id= p[2]
+                let value= {}
+                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
+				res.json( actionResourceRequest( path, value) )
+            })                         
             router.delete(`/resources/regions/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
                 let p= req.path.slice(1).split('/')
                 let path= p.slice(0,2).join('.')               
                 let id= p[2]
                 let value= {}
                 value[id]= null
-				res.json( actionResourceRequest(
-                    'vessels.self',
-                    path, 
-                    value, 
-                    null
-                ) )
+				res.json( actionResourceRequest( path, value) )
             }) 
         }                     
      
         return router
     }
 
-    function setupPUTHandlers() {
-        if(config.API.routes) {
-            app.debug('** Registering Route PUT Handler(s) **')
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.routes',
-                actionResourceRequest
-            )
-        }
-        if(config.API.waypoints) {
-            app.debug('** Registering Waypoint PUT Handler(s) **')
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.waypoints',
-                actionResourceRequest
-            )
-        }
-        if(config.API.notes) {
-            app.debug('** Registering Notes PUT Handler(s) **')
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.notes',
-                actionResourceRequest
-            )
-        }    
-        if(config.API.regions) {
-            app.debug('** Registering Regions PUT Handler(s) **')
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.regions',
-                actionResourceRequest
-            )
-        }                  
-    }
-
-    // *** resource processing **************************************
+    // *** RESOURCE PROCESSING **************************************
 
     // ** compile http api get response **
     function compileHttpResponse(req, resType) {
@@ -380,9 +369,9 @@ module.exports= function (app) {
             attribute: null
         }
         let a= path.split('/')
-        if( isUUID(a[a.length-1]) ) { res.path= path }
+        if( utils.isUUID(a[a.length-1]) ) { res.path= path }
         else {  
-            if( isUUID(a[3]) ) {
+            if( utils.isUUID(a[3]) ) {
                 res.path= a.slice(0,4).join('/')
                 res.attribute= a.slice(4).join('.')
             }
@@ -392,7 +381,7 @@ module.exports= function (app) {
     }
 
     // ** handle Resource POST, PUT, DELETE requests
-    function actionResourceRequest(context, path, value, cb) {
+    function actionResourceRequest(path, value) {
         if(path[0]=='.') {path= path.slice(1) }
         app.debug(`Path= ${JSON.stringify(path)}, value= ${JSON.stringify(value)}`) 
         let r={} 
@@ -402,7 +391,7 @@ module.exports= function (app) {
                 (path.indexOf('notes')!=-1 && config.API.notes) ||
                 (path.indexOf('regions')!=-1 && config.API.regions) ) {
             
-            r.type= p[1].slice(0, p[1].length-1)    // ** get resource type from path **
+            r.type= (p.length>1) ? p[1].slice(0, p[1].length-1) :  p[0].slice(0, p[0].length-1)   // ** get resource type from path **
 			let v= Object.entries(value)            // ** value= { uuid: { resource_data} }
             r.id= v[0][0]                           // uuid
             r.value= v[0][1]                        // resource_data
@@ -431,20 +420,18 @@ module.exports= function (app) {
             case 'waypoint':
             case 'note':
             case 'region':
-                db.setResource(r).then(res=> { 
-                    if(res) { // OK
-                        sendDelta(r)
-                        return { state: 'COMPLETED', resultStatus: 200, statusCode: 200 } 
-                    }
-                    else {  // error
-                        return { 
-                            state: 'COMPLETED', 
-                            resultStatus: 502, 
-                            statusCode: 502,
-                            message: `Error updating resource!` 
-                        }                    
-                    }                 
-                })
+                if(db.setResource(r)) { // OK
+                    sendDelta(r)
+                    return { state: 'COMPLETED', resultStatus: 200, statusCode: 200 } 
+                }
+                else {  // error
+                    return { 
+                        state: 'COMPLETED', 
+                        resultStatus: 502, 
+                        statusCode: 502,
+                        message: `Error updating resource!` 
+                    }                    
+                }                 
                 break;
             default:
                 return { 
