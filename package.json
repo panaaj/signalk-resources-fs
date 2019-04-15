@@ -1,6 +1,6 @@
 {
     "name": "resources",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Signal K Resources provider - FileSystem.",
     "main": "index.js",
     "keywords": [

@@ -136,27 +136,34 @@ module.exports= function (app) {
     function setupDeltaPUT() {
         if(app.registerActionHandler) {
             app.debug('** Registering DELTA Action Handler(s) **')
-
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.routes',
-                doActionHandler
-            )  
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.waypoints',
-                doActionHandler
-            )  
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.notes',
-                doActionHandler
-            )  
-            app.registerActionHandler(
-                'vessels.self',
-                'resources.regions',
-                doActionHandler
-            )                                  
+            if(config.API.routes) {
+                app.registerActionHandler(
+                    'vessels.self',
+                    'resources.routes',
+                    doActionHandler
+                )  
+            }
+            if(config.API.waypoints) {
+                app.registerActionHandler(
+                    'vessels.self',
+                    'resources.waypoints',
+                    doActionHandler
+                )  
+            }
+            if(config.API.notes) {
+                app.registerActionHandler(
+                    'vessels.self',
+                    'resources.notes',
+                    doActionHandler
+                )  
+            }
+            if(config.API.regions) {
+                app.registerActionHandler(
+                    'vessels.self',
+                    'resources.regions',
+                    doActionHandler
+                )  
+            }                                
         }         
     }
 
