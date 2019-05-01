@@ -23,30 +23,36 @@ module.exports= {
                 fs.constants.W_OK | fs.constants.R_OK, 
                 err=>{
                     if(err) {
-                        //console.log(`${this.savePath} not detected.... attempting to create it....`)
                         fs.mkdir(this.savePath, (err)=> {
                             if(err) { 
                                 resolve({error: true, message: `Unable to create ${this.savePath} folder`})
                             }   
-                            else {
-                                //console.log(`** OK: ${this.savePath} created....`)
-                                Object.keys(this.resources).forEach( t=> {
-                                    fs.mkdir(this.resources[t].path, (err)=> {
-										let retval= {error: false, message: ``}
-                                        if(err) { 
-											retval.error= true
-											retval.message+= `ERROR creating ${this.resources[t].path} folder\r\n` 
-										}                           
-                                    })
-                                })
-                                resolve({error: false, message: `Resource folders created`})                       
-                            }
+                            else { resolve( this.createSavePaths() ) }
                         })
                     }
-                    else { resolve({error: false, message: `Resource folders already exist`}) }
+                    else { resolve( this.createSavePaths() ) }
                 }
             )
         })
+    },
+
+    // ** create resource save paths
+    createSavePaths() {
+        result= {error: false, message: `Resource folders created`}
+        Object.keys(this.resources).forEach( t=> {
+            try {
+                fs.access( this.resources[t].path, fs.constants.W_OK | fs.constants.R_OK)               
+            }
+            catch (err) {
+                fs.mkdir(this.resources[t].path, (err)=> {
+                    if(err) { 
+                        result.error= true
+                        result.message+= `ERROR creating ${this.resources[t].path} folder\r\n ` 
+                    }                           
+                })  
+            }
+        })  
+        return result      
     },
 
     //** return persisted resources from storage
@@ -146,7 +152,12 @@ module.exports= {
             console.log(`check region: ${params.region}`)
             if(typeof res.region==='undefined') { ok= ok && false }
             else { ok= ok && (res.region==params.region) }
-        }        
+        }  
+        if(params.group) {	// ** check is attached to group
+            console.log(`check group: ${params.group}`)
+            if(typeof res.group==='undefined') { ok= ok && false }
+            else { ok= ok && (res.group==params.group) }
+        }                 
         if(params.geobounds) {	// ** check is within bounds
             ok= ok && utils.inBounds(res, rt[0], params.geobounds)
         }
