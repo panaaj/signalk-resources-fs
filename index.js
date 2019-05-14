@@ -32,7 +32,7 @@ module.exports= function (app) {
             waypoints: false,
             notes: false,
             regions: false
-        }      
+        }
     }
 	
     plugin.start= (props)=> {
@@ -82,25 +82,30 @@ module.exports= function (app) {
         properties: { 
             API: {
                 type: "object",
-                description: `Note: Changing these selections will require a server re-start before they take effect!`,
+                description: 'ENABLE / DISABLE `/signalk/api/resources` path handling.',
                 properties: {
                     routes: {
                         type: "boolean", 
-                        title: "Enabled"
+                        title: "ROUTES"
                     },
                     waypoints: {
                         type: "boolean",
-                        title: "Enabled"
+                        title: "WAYPOINTS"
                     },                                  
                     notes: {
                         type: "boolean",
-                        title: "Enabled"
+                        title: "NOTES"
                     },                   
                     regions: {
                         type: "boolean",
-                        title: "Enabled"
+                        title: "REGIONS"
                     }                    
                 }
+            },
+            path: {
+                type: "string",
+                title: "PATH to Resource files. Folders for each resource type will be created under here.",
+                default: "./resources"
             }
         } 
     }
@@ -109,24 +114,28 @@ module.exports= function (app) {
         API: {
             routes: {
                 "ui:widget": "checkbox",
-                "ui:title": "Enable / Disable ROUTES",
-                "ui:help": "Check this box to allow Routes to be managed"
+                "ui:title": "NOTE: Changing these selections will require a server re-start before they take effect!",
+                "ui:help": "/signalk/api/resources/routes"
             },
             waypoints: {
                 "ui:widget": "checkbox",
-                "ui:title": "Enable / Disable WAYPOINTS",
-                "ui:help": "Check this box to allow Waypoints to be managed"
+                "ui:title": " ",
+                "ui:help": "/signalk/api/resources/waypoints"
             },
             notes: {
                 "ui:widget": "checkbox",
-                "ui:title": "Enable / Disable NOTES",
-                "ui:help": "Check this box to allow Notes to be managed"
+                "ui:title": " ",
+                "ui:help": "/signalk/api/resources/notes"
             },
             regions: {
                 "ui:widget": "checkbox",
-                "ui:title": "Enable / Disable REGIONS",
-                "ui:help": "Check this box to allow Regions to be managed"
+                "ui:title": " ",
+                "ui:help": "/signalk/api/resources/regions"
             }                          
+        },
+        PATH: {
+            "ui:emptyValue": "./resources",
+            "ui:help": "Enter path relative to home/<user>/.signalk/"            
         }
     }
 

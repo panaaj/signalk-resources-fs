@@ -11,7 +11,10 @@ module.exports= {
 	
     // ** check / create path to persist resources
     init: function(config) {
-        this.savePath= config.path + '/resources';
+        if(typeof config.settings.path==='undefined') { this.savePath= config.path + '/resources' }
+        else if(config.settings.path[0]=='/'){ this.savePath= config.settings.path }
+        else { this.savePath= path.join(config.path, config.settings.path) }
+
         if(config.settings.API) {
             Object.keys(config.settings.API).forEach( i=>{
                 this.resources[i.slice(0,i.length-1)]= {path: path.join(this.savePath, `/${i}`)}
@@ -23,33 +26,45 @@ module.exports= {
                 fs.constants.W_OK | fs.constants.R_OK, 
                 err=>{
                     if(err) {
-                        fs.mkdir(this.savePath, (err)=> {
-                            if(err) { 
-                                resolve({error: true, message: `Unable to create ${this.savePath} folder`})
-                            }   
-                            else { resolve( this.createSavePaths() ) }
+                        console.log(`${this.savePath} does NOT exist...`)
+                        console.log(`Creating ${this.savePath} ...`)
+                        let mkdirp = require('mkdirp');
+                        mkdirp(this.savePath, (err)=> {
+                            if(err) { resolve({error: true, message: `Unable to create ${this.savePath}!`}) }   
+                            else { resolve( this.createSavePaths(config.settings.API) ) }
                         })
                     }
-                    else { resolve( this.createSavePaths() ) }
+                    else { 
+                        console.log(`${this.savePath} - OK...`)
+                        resolve( this.createSavePaths(config.settings.API) ) 
+                    }
                 }
             )
         })
     },
 
-    // ** create resource save paths
-    createSavePaths() {
-        result= {error: false, message: `Resource folders created`}
+    // ** create save paths for resource types
+    createSavePaths(resTypes) {
+        result= {error: false, message: ``}
         Object.keys(this.resources).forEach( t=> {
-            try {
-                fs.access( this.resources[t].path, fs.constants.W_OK | fs.constants.R_OK)               
-            }
-            catch (err) {
-                fs.mkdir(this.resources[t].path, (err)=> {
-                    if(err) { 
-                        result.error= true
-                        result.message+= `ERROR creating ${this.resources[t].path} folder\r\n ` 
-                    }                           
-                })  
+            if(resTypes[`${t}s`]) {
+                fs.access( 
+                    this.resources[t].path, 
+                    fs.constants.W_OK | fs.constants.R_OK, 
+                    err=>{
+                        if(err) {
+                            console.log(`${this.resources[t].path} NOT available...`) 
+                            console.log(`Creating ${this.resources[t].path} ...`)
+                            fs.mkdir(this.resources[t].path, (err)=> {
+                                if(err) { 
+                                    result.error= true
+                                    result.message+= `ERROR creating ${this.resources[t].path} folder\r\n ` 
+                                }                           
+                            })  
+                        }
+                        else { console.log(`${this.resources[t].path} - OK....`) }
+                    }
+                ) 
             }
         })  
         return result      
