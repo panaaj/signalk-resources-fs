@@ -1,11 +1,12 @@
 {
-    "name": "resources",
-    "version": "0.0.4",
-    "description": "Signal K Resources provider - FileSystem.",
+    "name": "sk-resources-fs",
+    "version": "0.1.0",
+    "description": "Simple filesystem based Resources provider for Signal K.",
     "main": "index.js",
     "keywords": [
         "signalk-node-server-plugin",
-        "signalk"
+        "signalk",
+        "resources", "routes", "waypoints", "regions", "notes"
     ],
     "repository": "https://github.com/panaaj/signalk-resources-fs",
     "scripts": {

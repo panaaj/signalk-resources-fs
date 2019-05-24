@@ -26,16 +26,25 @@ module.exports= {
 					let ok=false;
 					val.feature.geometry.coordinates.forEach( i=> {
 						ok= ok || this.pointInBounds(i, bounds)
-					});
+					})
 					return ok
 				}
 				break
 			case 'region':
 				if(val.feature.geometry.coordinates && val.feature.geometry.coordinates.length>0) {
 					let ok=false;
-					val.feature.geometry.coordinates[0].forEach( i=> {
-						ok= ok || this.pointInBounds(i, bounds)
-					});
+					if(val.feature.geometry.type=='Polygon') {
+						val.feature.geometry.coordinates.forEach( ls=> {
+							ls.forEach( pt=> { ok= ok || this.pointInBounds(pt, bounds) })
+						})
+					}
+					else if(val.feature.geometry.type=='MultiPolygon') {
+						val.feature.geometry.coordinates.forEach( polygon=> {
+							polygon.forEach( ls=> {
+								ls.forEach( pt=> { ok= ok || this.pointInBounds(pt, bounds) })
+							})
+						})
+					}
 					return ok
 				}
 				break
