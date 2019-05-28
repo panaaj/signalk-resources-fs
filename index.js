@@ -21,8 +21,8 @@ const uuid = require('uuid/v4')
 module.exports= function (app) {
 
     let plugin= {
-        id: 'resources',
-        name: 'Resources Provider',
+        id: 'sk-resources-fs',
+        name: 'Resources-FS: Simple resources provider',
         description: pkg.description,
         version: pkg.version
     }

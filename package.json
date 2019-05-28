@@ -1,6 +1,6 @@
 {
     "name": "sk-resources-fs",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "description": "Simple filesystem based Resources provider for Signal K.",
     "main": "index.js",
     "keywords": [
