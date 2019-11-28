@@ -14,15 +14,16 @@
 */
 
 const pkg= require('./package.json')
-const db = require('./filestorage')
-const utils = require('./utils')
+const dbAdapter = require('./lib/dbfacade')
+const fsAdapter = require('./lib/filestorage')
+const utils = require('./lib/utils')
 const uuid = require('uuid/v4')
 
 module.exports= function (app) {
 
     let plugin= {
         id: 'sk-resources-fs',
-        name: 'Resources-FS: Simple resources provider',
+        name: 'Resources-DB',
         description: pkg.description,
         version: pkg.version
     }
@@ -34,24 +35,34 @@ module.exports= function (app) {
             regions: false
         }
     }
-	
-    plugin.start= (props)=> {
+
+    let db= dbAdapter  // resource data source handle
+
+    plugin.start= (options)=> {
         try {
             app.debug(`${plugin.name} starting.......`) 
             app.debug(`** pkgname: ${pkg.name}, pkgversion: ${pkg.version}`) 
 
-            config= props || config;
+            config= options || config;
             app.debug('*** Configuration ***')
-            app.debug(config)           
-
+            app.debug(config)  
+            if(!config.source) { db= fsAdapter }
+            else {
+                switch(config.source) {
+                    case 'db':
+                        db= dbAdapter 
+                        break
+                    default: 
+                        db= fsAdapter 
+                }
+            }
 			// ** initialise resource storage
             db.init({settings: config, path: app.config.configPath})
             .then( res=> {
 				if(res.error) {
 					app.error(`*** ERROR: ${res.message} ***`)
 					app.setProviderError(res.message)			
-				}
-				app.debug(res)
+                }
                 let ae= 'Handling:'
                 ae+= (config.API && config.API.routes) ? ' Routes, ' : ''
                 ae+= (config.API && config.API.waypoints) ? ' Waypoints, ' : ''
@@ -60,7 +71,10 @@ module.exports= function (app) {
                 app.setProviderStatus(`Started. ${ae}`) 
                 app.debug(`** ${plugin.name} started... ${(!res.error) ? 'OK' : 'with errors!'}`)     
             })
-            .catch( e=> { app.debug(e) } )
+            .catch( e=> { 
+                app.debug(e)
+                app.setProviderStatus(`Initialisation Error! See console for details.`) 
+            } )
 
             // ** initialise Delta PUT handlers **
             setupDeltaPUT()
@@ -76,6 +90,7 @@ module.exports= function (app) {
     plugin.stop= ()=> { 
         app.debug(`${plugin.name} stopping.......`)   
         app.setProviderStatus(`Stopped`)
+        db.close()
     }
 
     plugin.schema= { 
@@ -102,9 +117,16 @@ module.exports= function (app) {
                     }                    
                 }
             },
+            source: {
+                type: "string",
+                title: "Select type of Resource data store to use.",
+                default: 'filesystem',
+                enum: ['filesystem', 'db'],
+                enumNames: ['FileSystem', 'Database']
+            },
             path: {
                 type: "string",
-                title: "PATH to Resource files. Folders for each resource type will be created under here.",
+                title: "PATH to Resource data: URL or path relative to home/<user>/.signalk/",
                 default: "./resources"
             }
         } 
@@ -133,9 +155,14 @@ module.exports= function (app) {
                 "ui:help": "/signalk/api/resources/regions"
             }                          
         },
+        SOURCE: {
+            "ui:widget": "radio",
+            "ui:title": " ",
+            "ui:help": "Select the type of Resource data store to use." 
+        },
         PATH: {
             "ui:emptyValue": "./resources",
-            "ui:help": "Enter path relative to home/<user>/.signalk/"            
+            "ui:help": "Enter URL or path relative to home/<user>/.signalk/"            
         }
     }
 
@@ -145,34 +172,18 @@ module.exports= function (app) {
     function setupDeltaPUT() {
         if(app.registerActionHandler) {
             app.debug('** Registering DELTA Action Handler(s) **')
-            if(config.API.routes) {
-                app.registerActionHandler(
-                    'vessels.self',
-                    'resources.routes',
-                    doActionHandler
-                )  
-            }
-            if(config.API.waypoints) {
-                app.registerActionHandler(
-                    'vessels.self',
-                    'resources.waypoints',
-                    doActionHandler
-                )  
-            }
-            if(config.API.notes) {
-                app.registerActionHandler(
-                    'vessels.self',
-                    'resources.notes',
-                    doActionHandler
-                )  
-            }
-            if(config.API.regions) {
-                app.registerActionHandler(
-                    'vessels.self',
-                    'resources.regions',
-                    doActionHandler
-                )  
-            }                                
+
+            let ci= Object.entries(config.API)
+            app.debug('** signalKApiRoutes() **')
+            for(let i=0;i<ci.length;i++) {
+                if(ci[i]) { 
+                    app.registerActionHandler(
+                        'vessels.self',
+                        `resources.${ci[i][0]}`,
+                        doActionHandler
+                    )  
+                }
+            }                              
         }         
     }
 
@@ -182,213 +193,115 @@ module.exports= function (app) {
 		return actionResourceRequest( path, value) 
 	}
    
-    // ** handle resources routes **
+    // ** Signal K Resources HTTP path handlers **
     plugin.signalKApiRoutes= router=> {
-        if(config.API.waypoints) {
-            app.debug('** Registering Waypoint routes **')
-            router.get('/resources/waypoints/meta', (req, res)=> {
-                res.json( {description: 'Collection of waypoints, each named with a UUID'} )
-            })           
-            router.get('/resources/waypoints', (req, res)=> {
-                req.query['position']= getVesselPosition()
-                res.json( db.getResources('waypoint', null, req.query).waypoints )
-            })   
-            router.get(`/resources/waypoints/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let r= compileHttpResponse(req, 'waypoint') 
-                if(r.error) { res.send( r.message ) }
-                else { res.json(r.data) }
-            })   
-            router.post(`/resources/waypoints`, (req, res)=> {
-                let path= req.path.split('/').join('.')
-                let value= {}
-                let id= utils.uuidPrefix + uuid()
-				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            }) 
-            router.put(`/resources/waypoints/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            })                                    
-            router.delete(`/resources/waypoints/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= null
-				res.json( actionResourceRequest( path, value) )
-            })
-        }
-        
-        if(config.API.routes) {
-            app.debug('** Registering Route routes **')
-            router.get('/resources/routes/meta', (req, res)=> {
-                res.json( {description: 'Collection of routes, each named with a UUID'} )
-            })            
-            router.get('/resources/routes', (req, res) => {
-                req.query['position']= getVesselPosition()
-                res.json( db.getResources('route', null, req.query).routes )
-            })   
-            router.get(`/resources/routes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let r= compileHttpResponse(req, 'route') 
-                if(r.error) { res.send( r.message ) }
-                else { res.json(r.data) }
-            })  
-            router.post(`/resources/routes`, (req, res)=> {
-                let path= req.path.split('/').join('.')
-                let value= {}
-                let id= utils.uuidPrefix + uuid()
-				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            })   
-            router.put(`/resources/routes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            })                         
-            router.delete(`/resources/routes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= null
-				res.json( actionResourceRequest( path, value) )
-            })      
-        }  
-        
-        if(config.API.notes) {
-            app.debug('** Registering Note routes **')
-            router.get('/resources/notes/meta', (req, res)=> {
-                res.json( {description: 'Collection of notes, each named with a UUID'} )
-            })            
-            router.get('/resources/notes', (req, res)=> {
-                req.query['position']= getVesselPosition()
-                res.json( db.getResources('note', null, req.query).notes )
-            })  
-            router.get(`/resources/notes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let r= compileHttpResponse(req, 'note') 
-                if(r.error) { res.send( r.message ) }
-                else { res.json(r.data) }
-            })
-            router.post(`/resources/notes`, (req, res)=> {
-                let path= req.path.split('/').join('.')
-                let value= {}
-                let id= utils.uuidPrefix + uuid()
-				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            })   
-            router.put(`/resources/notes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            })                         
-            router.delete(`/resources/notes/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= null
-				res.json( actionResourceRequest( path, value) )
-            })
-        }
-
-        if(config.API.regions) {
-            app.debug('** Registering Region routes **')
-            router.get('/resources/regions/meta', (req, res)=> {
-                res.json( {description: 'Collection of regions, each named with a UUID'} )
-            })            
-            router.get('/resources/regions', (req, res)=> {
-                req.query['position']= getVesselPosition()
-                res.json( db.getResources('region', null, req.query).regions )
-            })  
-            router.get(`/resources/regions/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let r= compileHttpResponse(req, 'region') 
-                if(r.error) { res.send( r.message ) }
-                else { res.json(r.data) }
-            }) 
-            router.post(`/resources/regions`, (req, res)=> {
-                let path= req.path.split('/').join('.')
-                let value= {}
-                let id= utils.uuidPrefix + uuid()
-				value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            })   
-            router.put(`/resources/regions/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= (typeof req.body.value!=='undefined') ? req.body.value : req.body
-				res.json( actionResourceRequest( path, value) )
-            })                         
-            router.delete(`/resources/regions/${utils.uuidPrefix}*-*-*-*-*`, (req, res)=> {
-                let p= req.path.slice(1).split('/')
-                let path= p.slice(0,2).join('.')               
-                let id= p[2]
-                let value= {}
-                value[id]= null
-				res.json( actionResourceRequest( path, value) )
-            }) 
-        }                     
-     
+        let ci= Object.entries(config.API)
+        app.debug('** signalKApiRoutes() **')
+        for(let i=0;i<ci.length;i++) {
+            if(ci[i]) {
+                app.debug(`** Registering ${ci[i][0]} paths **`)
+                router.get(`/resources/${ci[i][0]}/meta`, (req, res)=> {
+                    res.json( {description: `Collection of ${ci[i][0]}, each named with a UUID`} )
+                })          
+                router.get(`/resources/${ci[i][0]}`, async (req, res)=> {
+                    req.query['position']= getVesselPosition()
+                    compileHttpGetResponse(req, true)
+                    .then( r=> {
+                        if(typeof r.error!=='undefined') { 
+                            res.status(r.status).send(r.message)
+                        }
+                        else { res.json(r) }                    
+                    })
+                    .catch (err=> { res.status(500) } )
+                })
+                router.get(`/resources/${ci[i][0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
+                    compileHttpGetResponse(req)
+                    .then( r=> {
+                        if(typeof r.error!=='undefined') { 
+                            res.status(r.status).send(r.message)
+                        }
+                        else { res.json(r) }                    
+                    })
+                    .catch (err=> { res.status(500) } ) 
+                })   
+                router.post(`/resources/${ci[i][0]}`, async (req, res)=> {
+                    let p= formatActionRequest(req)
+                    actionResourceRequest( p.path, p.value) 
+                    .then( r=> {
+                        if(typeof r.error!=='undefined') { 
+                            res.status(r.status).send(r.message)
+                        }
+                        else { res.json(r) }                    
+                    })
+                    .catch (err=> { res.status(500) } ) 
+                }) 
+                router.put(`/resources/${ci[i][0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
+                    let p= formatActionRequest(req)
+                    actionResourceRequest( p.path, p.value)
+                    .then( r=> {
+                        if(typeof r.error!=='undefined') { 
+                            res.status(r.status).send(r.message)
+                        }
+                        else { res.json(r) }                    
+                    })
+                    .catch (err=> { res.status(500) } ) 
+                })                                    
+                router.delete(`/resources/${ci[i][0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
+                    let p= formatActionRequest(req, true)
+                    actionResourceRequest( p.path, p.value)
+                    .then( r=> {
+                        if(typeof r.error!=='undefined') { 
+                            res.status(r.status).send(r.message)
+                        }
+                        else { res.json(r) }                    
+                    })
+                    .catch (err=> { res.status(500) } ) 
+                })
+            }
+        }      
         return router
     }
 
     // *** RESOURCE PROCESSING **************************************
 
-    // ** compile http api get response **
-    function compileHttpResponse(req, resType) {
-        let res= {error: false, message: '', data: null }
+    /** compile http api get response 
+     * req: http request object
+     * list: true: resource list, false: single entry
+     * *******************************/
+    async function compileHttpGetResponse(req, list=false) {
+        let err= {error: true, message: `Cannot GET ${req.path}`, status: 404 }
 
         let p= parsePath(req.path)
-        if(!p.path) { 
-            res.error= true
-            res.message= `Cannot GET ${req.path}`
-            return res
+        if(!p.type) { return err }
+ 
+        if(list) { // retrieve resource list
+            return await db.getResources(p.type, null, req.query) 
         }
-
-        let fname= p.path.substring(p.path.lastIndexOf(':')+1)
-        let r= db.getResources(resType, fname)
-        
-        if(r.error) { 
-            res.error= true
-            res.message= `Cannot GET ${req.path}`
-            return res
-        }
-
-        if(p.attribute) { 
-            let a= eval(`r.${p.attribute}`)
-            if(a) { res.data= a }
-            else { 
-                res.error= true
-                res.message= `Cannot GET ${req.path}` 
+        else { // retrieve resource entry
+            let r= await db.getResources(p.type, p.uuid) 
+            if(p.attribute) { // extract resource attribute value
+                let a= eval(`r.${p.attribute}`)
+                if(a) { return a }
+                else { return err }
             }
+            else { return r }
         }
-        else { res.data=r }
-
-        return res         
     }
 
-    // ** parse provided path to resource and attributes
+    // ** parse provided path to resource type, uuid and attributes
     function parsePath(path) {
         let res= {
-            path: null,
+            type: null,
+            uuid: null,
             attribute: null
         }
         let a= path.split('/')
-        if( utils.isUUID(a[a.length-1]) ) { res.path= path }
+        res.type= a[2]  // set resource type
+        if( utils.isUUID(a[a.length-1]) ) { res.uuid= a[a.length-1] }
         else {  
             if( utils.isUUID(a[3]) ) {
-                res.path= a.slice(0,4).join('/')
+                app.debug(a[3])
+                res.uuid= a[3].slice(a[3].lastIndexOf(':')+1)
                 res.attribute= a.slice(4).join('.')
             }
         }
@@ -396,73 +309,115 @@ module.exports= function (app) {
         return res
     }
 
-    // ** handle Resource POST, PUT, DELETE requests
-    function actionResourceRequest(path, value) {
+    /** format http request path for action request 
+     * forDelete: true= returned value=null, false= returned value= req.body
+     * returns: { path: string, value: {id: string} } **/
+    function formatActionRequest(req, forDelete=false) {
+        let result= {path: null, value: {} }
+        let id
+        let p= req.path.slice(1).split('/')
+        if(p.length==2) { 
+            result.path= p.join('.')
+            id= utils.uuidPrefix + uuid()
+        }
+        else { 
+            result.path= p.slice(0,2).join('.')               
+            id= p[2]
+        }
+        result.value[id]= (forDelete) ? null 
+            : (typeof req.body.value!=='undefined') ? req.body.value : req.body
+
+        app.debug('** FORMATTED ACTION REQUEST: **')
+        app.debug(result)
+        return result
+    }
+
+    // ** format actionRequest response message for http request 
+    function formatHttpResult(value) {
+        return { 
+            error: (value.statusCode>=400) ? true : false,
+            status: value.statusCode,
+            message: value.message
+        }
+    }
+
+    /** handle Resource POST, PUT, DELETE requests 
+     * http: false: WS formatted status, true: http formatted status **/
+    async function actionResourceRequest(path, value, http=false) {
         if(path[0]=='.') {path= path.slice(1) }
-        app.debug(`Path= ${JSON.stringify(path)}, value= ${JSON.stringify(value)}`) 
+        //app.debug(`Path= ${JSON.stringify(path)}, value= ${JSON.stringify(value)}`) 
         let r={} 
-        let p= path.split('.')   
-        if( (path.indexOf('routes')!=-1 && config.API.routes) ||
-                (path.indexOf('waypoints')!=-1 && config.API.waypoints) ||
-                (path.indexOf('notes')!=-1 && config.API.notes) ||
-                (path.indexOf('regions')!=-1 && config.API.regions) ) {
-            
-            r.type= (p.length>1) ? p[1].slice(0, p[1].length-1) :  p[0].slice(0, p[0].length-1)   // ** get resource type from path **
+        let p= path.split('.')  
+        let ok= false 
+        let result
+        if(config.API) {
+            Object.entries(config.API).forEach( i=> { 
+                if(path.indexOf(i[0])!=-1 && i[1] ) { ok= true }
+            })
+        }  
+  
+        if( ok ) {  // enabled resource type
+            r.type= (p.length>1) ? p[1] :  p[0]   // ** get resource type from path **
 			let v= Object.entries(value)            // ** value= { uuid: { resource_data} }
             r.id= v[0][0]                           // uuid
             r.value= v[0][1]                        // resource_data
-            app.debug(r)  
             // ** test for valid resource identifier
             if( !utils.isUUID(r.id) ) {
-                return { 
+                result= { 
                     state: 'COMPLETED', 
                     resultStatus: 400, 
                     statusCode: 400,
                     message: `Invalid resource id!` 
                 }
+                return (http) ? formatHttpResult(result) : result
             }
         }
         else { 
-            return { 
+            result= { 
                 state: 'COMPLETED', 
                 resultStatus: 400, 
                 statusCode: 400,
                 message: `Invalid path!` 
-            }        
+            }    
+            return (http) ? formatHttpResult(result) : result    
         }
 
         switch(r.type) {
-            case 'route': 
-            case 'waypoint':
-            case 'note':
-            case 'region':
-                if(db.setResource(r)) { // OK
+            case 'routes': 
+            case 'waypoints':
+            case 'notes':
+            case 'regions':
+                result= await db.setResource(r)          
+                if(typeof result.error==='undefined') { // OK
                     sendDelta(r)
-                    return { state: 'COMPLETED', resultStatus: 200, statusCode: 200 } 
+                    result= { state: 'COMPLETED', resultStatus: 200, statusCode: 200 } 
+                    return (http) ? formatHttpResult(result) : result
                 }
                 else {  // error
-                    return { 
+                    result= { 
                         state: 'COMPLETED', 
                         resultStatus: 502, 
                         statusCode: 502,
                         message: `Error updating resource!` 
-                    }                    
-                }                 
+                    }
+                    return (http) ? formatHttpResult(result) : result                 
+                }              
                 break;
             default:
-                return { 
+                result= { 
                     state: 'COMPLETED', 
                     resultStatus: 400, 
                     statusCode: 400,
                     message: `Invalid resource type (${r.type})!` 
                 }
+                return (http) ? formatHttpResult(result) : result
         }
     } 
      
     // ** send delta message for resource
     function sendDelta(r) {
         let key= r.id
-        let p= `resources.${r.type}s.${key}`
+        let p= `resources.${r.type}.${key}`
         let val= [{path: p, value: r.value}]
         app.debug(`****** Send Delta: ******`)
         app.debug(JSON.stringify({updates: [ {values: val} ] }))

@@ -1,17 +1,19 @@
 {
     "name": "sk-resources-fs",
-    "version": "1.0.0",
-    "description": "Simple filesystem based Resources provider for Signal K.",
+    "version": "1.1.0",
+    "description": "Resources provider plugin for Signal K.",
     "main": "index.js",
     "keywords": [
         "signalk-node-server-plugin",
         "signalk",
-        "resources", "routes", "waypoints", "regions", "notes"
+        "resources",
+        "routes",
+        "waypoints",
+        "regions",
+        "notes"
     ],
     "repository": "https://github.com/panaaj/signalk-resources-fs",
     "scripts": {
-        "format": "prettier-standard 'src/**/*.js'",
-        "test": "mocha"
     },
     "author": "AdrianP",
     "contributors": [
@@ -23,10 +25,10 @@
     "dependencies": {
         "geojson-validation": "^0.2.0",
         "uuid": "^3.3.2",
-        "mkdirp": "^0.5.1"
+        "mkdirp": "^0.5.1",
+        "pouchdb": "^7.1.1",
+        "pouchdb-find": "^7.1.1"
     },
     "devDependencies": {
-        "mocha": "^5.0.5",
-        "prettier-standard": "^8.0.0"
     }
 }
