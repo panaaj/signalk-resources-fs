@@ -19,11 +19,11 @@ const fsAdapter = require('./lib/filestorage')
 const utils = require('./lib/utils')
 const uuid = require('uuid/v4')
 
-module.exports= function (app) {
+module.exports= function(app) {
 
     let plugin= {
         id: 'sk-resources-fs',
-        name: 'Resources-DB',
+        name: 'Resources Provider (sk-resources-fs)',
         description: pkg.description,
         version: pkg.version
     }
@@ -126,7 +126,7 @@ module.exports= function (app) {
             },
             path: {
                 type: "string",
-                title: "PATH to Resource data: URL or path relative to home/<user>/.signalk/",
+                title: "PATH to Resource data: URL or file system path (relative to home/<user>/.signalk)",
                 default: "./resources"
             }
         } 
@@ -174,7 +174,6 @@ module.exports= function (app) {
             app.debug('** Registering DELTA Action Handler(s) **')
 
             let ci= Object.entries(config.API)
-            app.debug('** signalKApiRoutes() **')
             for(let i=0;i<ci.length;i++) {
                 if(ci[i]) { 
                     app.registerActionHandler(
@@ -196,7 +195,6 @@ module.exports= function (app) {
     // ** Signal K Resources HTTP path handlers **
     plugin.signalKApiRoutes= router=> {
         let ci= Object.entries(config.API)
-        app.debug('** signalKApiRoutes() **')
         for(let i=0;i<ci.length;i++) {
             if(ci[i]) {
                 app.debug(`** Registering ${ci[i][0]} paths **`)
