@@ -1,6 +1,6 @@
 # Signal K Resources Provider Plugin:
 
-__Resource API__ provider plugin for __Signal K Server__.
+__Resources API__ provider plugin for __Signal K Server__.
 
 This Signal K node server plugin acts as a resource provider for the following API paths:
 - `resources/routes`
@@ -44,7 +44,7 @@ Currently the following data store types are provided:
 
     __Note: Choose this option if you are moving from `GPXLoad`.__ _Setting the path to the location used by `GPXLoad` will make all your existing resources available._
 
-2. `Databse`: Choosing this option store will use a database provider as the resource store. If the value entered in `path` is a:
+2. `Database`: Choosing this option store will use a database provider as the resource store. If the value entered in `path` is a:
     - `file system path on the device`: a databse store will be cretaed on the file system in the specified path.
 
     - `url`: a `CouchDB` compliant API will be used to interact with the databse server at the specified url. 
@@ -57,11 +57,3 @@ Once configured the plugin will handle all of the following requests for the ena
 - Delta GET and PUT requests
 
 _Please refer to the [Signal K specification](https://signalk.org/specification) for details about working with resources._
-
-
-
-
-
-
-
-

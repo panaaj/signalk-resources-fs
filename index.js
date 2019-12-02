@@ -169,7 +169,7 @@ module.exports= function(app) {
     // *** SETUP ROUTE HANDLING **************************************
 
     // ** register DELTA PUT handlers **
-    function setupDeltaPUT() {
+    setupDeltaPUT= ()=> {
         if(app.registerActionHandler) {
             app.debug('** Registering DELTA Action Handler(s) **')
 
@@ -187,7 +187,7 @@ module.exports= function(app) {
     }
 
     // ** DELTA PUT action handler **
-    function doActionHandler(context, path, value, cb) { 
+    doActionHandler= (context, path, value, cb)=> { 
 		app.debug('DELTA PUT ACTION')
 		return actionResourceRequest( path, value) 
 	}
@@ -266,7 +266,7 @@ module.exports= function(app) {
      * req: http request object
      * list: true: resource list, false: single entry
      * *******************************/
-    async function compileHttpGetResponse(req, list=false) {
+    compileHttpGetResponse= async (req, list=false)=> {
         let err= {error: true, message: `Cannot GET ${req.path}`, status: 404 }
 
         let p= parsePath(req.path)
@@ -287,7 +287,7 @@ module.exports= function(app) {
     }
 
     // ** parse provided path to resource type, uuid and attributes
-    function parsePath(path) {
+    parsePath= path=> {
         let res= {
             type: null,
             uuid: null,
@@ -310,7 +310,7 @@ module.exports= function(app) {
     /** format http request path for action request 
      * forDelete: true= returned value=null, false= returned value= req.body
      * returns: { path: string, value: {id: string} } **/
-    function formatActionRequest(req, forDelete=false) {
+    formatActionRequest= (req, forDelete=false)=> {
         let result= {path: null, value: {} }
         let id
         let p= req.path.slice(1).split('/')
@@ -331,7 +331,7 @@ module.exports= function(app) {
     }
 
     // ** format actionRequest response message for http request 
-    function formatHttpResult(value) {
+    formatHttpResult= value=> {
         return { 
             error: (value.statusCode>=400) ? true : false,
             status: value.statusCode,
@@ -341,7 +341,7 @@ module.exports= function(app) {
 
     /** handle Resource POST, PUT, DELETE requests 
      * http: false: WS formatted status, true: http formatted status **/
-    async function actionResourceRequest(path, value, http=false) {
+    actionResourceRequest= async (path, value, http=false)=> {
         if(path[0]=='.') {path= path.slice(1) }
         //app.debug(`Path= ${JSON.stringify(path)}, value= ${JSON.stringify(value)}`) 
         let r={} 
@@ -413,7 +413,7 @@ module.exports= function(app) {
     } 
      
     // ** send delta message for resource
-    function sendDelta(r) {
+    sendDelta= r=> {
         let key= r.id
         let p= `resources.${r.type}.${key}`
         let val= [{path: p, value: r.value}]
@@ -422,7 +422,7 @@ module.exports= function(app) {
         app.handleMessage(plugin.id, {updates: [ {values: val} ] })
     }
 
-    function getVesselPosition() {
+    getVesselPosition= ()=> {
         let p= app.getSelfPath('navigation.position')
         return (p && p.value) ? [ p.value.longitude, p.value.latitude ] : null
     }

@@ -13,14 +13,9 @@
         "notes"
     ],
     "repository": "https://github.com/panaaj/signalk-resources-fs",
-    "scripts": {
-    },
+    "scripts": {},
     "author": "AdrianP",
-    "contributors": [
-        {
-            "name": "panaaj@hotmail.com"
-        }
-    ],
+    "contributors": [ { "name": "panaaj@hotmail.com"} ],
     "license": "Apache-20",
     "dependencies": {
         "geojson-validation": "^0.2.0",
@@ -29,6 +24,5 @@
         "pouchdb": "^7.1.1",
         "pouchdb-find": "^7.1.1"
     },
-    "devDependencies": {
-    }
+    "devDependencies": {}
 }
