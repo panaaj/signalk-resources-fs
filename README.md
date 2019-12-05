@@ -47,7 +47,7 @@ Currently the following data store types are provided:
 2. `Database`: Choosing this option store will use a database provider as the resource store. If the value entered in `path` is a:
     - `file system path on the device`: a databse store will be cretaed on the file system in the specified path.
 
-    - `url`: a `CouchDB` compliant API will be used to interact with the databse server at the specified url. 
+    - `url`: a `CouchDB` compliant API will be used to interact with a database server at the specified url. 
 
 ---
 ## Use and Operation:
