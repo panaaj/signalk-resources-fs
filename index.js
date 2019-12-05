@@ -171,18 +171,16 @@ module.exports= function(app) {
     // ** register DELTA PUT handlers **
     setupDeltaPUT= ()=> {
         if(app.registerActionHandler) {
-            app.debug('** Registering DELTA Action Handler(s) **')
-
-            let ci= Object.entries(config.API)
-            for(let i=0;i<ci.length;i++) {
-                if(ci[i]) { 
+            Object.entries(config.API).forEach( ci=>{
+                if(ci[1]) { 
+                    app.debug(`** Registering ${ci[0]}  DELTA Action Handler **`)
                     app.registerActionHandler(
                         'vessels.self',
-                        `resources.${ci[i][0]}`,
+                        `resources.${ci[0]}`,
                         doActionHandler
                     )  
                 }
-            }                              
+            })                            
         }         
     }
 
@@ -194,14 +192,13 @@ module.exports= function(app) {
    
     // ** Signal K Resources HTTP path handlers **
     plugin.signalKApiRoutes= router=> {
-        let ci= Object.entries(config.API)
-        for(let i=0;i<ci.length;i++) {
-            if(ci[i]) {
-                app.debug(`** Registering ${ci[i][0]} paths **`)
-                router.get(`/resources/${ci[i][0]}/meta`, (req, res)=> {
-                    res.json( {description: `Collection of ${ci[i][0]}, each named with a UUID`} )
+        Object.entries(config.API).forEach( ci=>{
+            if(ci[1]) {
+                app.debug(`** Registering ${ci[0]} API paths **`)
+                router.get(`/resources/${ci[0]}/meta`, (req, res)=> {
+                    res.json( {description: `Collection of ${ci[0]}, each named with a UUID`} )
                 })          
-                router.get(`/resources/${ci[i][0]}`, async (req, res)=> {
+                router.get(`/resources/${ci[0]}`, async (req, res)=> {
                     req.query['position']= getVesselPosition()
                     compileHttpGetResponse(req, true)
                     .then( r=> {
@@ -212,7 +209,7 @@ module.exports= function(app) {
                     })
                     .catch (err=> { res.status(500) } )
                 })
-                router.get(`/resources/${ci[i][0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
+                router.get(`/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
                     compileHttpGetResponse(req)
                     .then( r=> {
                         if(typeof r.error!=='undefined') { 
@@ -222,7 +219,7 @@ module.exports= function(app) {
                     })
                     .catch (err=> { res.status(500) } ) 
                 })   
-                router.post(`/resources/${ci[i][0]}`, async (req, res)=> {
+                router.post(`/resources/${ci[0]}`, async (req, res)=> {
                     let p= formatActionRequest(req)
                     actionResourceRequest( p.path, p.value) 
                     .then( r=> {
@@ -233,7 +230,7 @@ module.exports= function(app) {
                     })
                     .catch (err=> { res.status(500) } ) 
                 }) 
-                router.put(`/resources/${ci[i][0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
+                router.put(`/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
                     let p= formatActionRequest(req)
                     actionResourceRequest( p.path, p.value)
                     .then( r=> {
@@ -244,7 +241,7 @@ module.exports= function(app) {
                     })
                     .catch (err=> { res.status(500) } ) 
                 })                                    
-                router.delete(`/resources/${ci[i][0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
+                router.delete(`/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, async (req, res)=> {
                     let p= formatActionRequest(req, true)
                     actionResourceRequest( p.path, p.value)
                     .then( r=> {
@@ -256,7 +253,7 @@ module.exports= function(app) {
                     .catch (err=> { res.status(500) } ) 
                 })
             }
-        }      
+        })    
         return router
     }
 
