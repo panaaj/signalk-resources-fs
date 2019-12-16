@@ -266,15 +266,14 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
 
     // ** register DELTA PUT handlers **
     const setupDeltaPUT= ()=> {
-        if(server.registerActionHandler) {
+        if(server.registerPutHandler) {
             Object.entries(config.API).forEach( ci=>{
                 if(ci[1]) { 
                     server.debug(`** Registering ${ci[0]}  DELTA Action Handler **`);
                     server.debug(`** resources.${ci[0]} **`);
-                    server.registerActionHandler(
+                    server.registerPutHandler(
                         'vessels.self',
                         `resources.${ci[0]}`,
-                        '',
                         doActionHandler
                     ); 
                 }
