@@ -1,6 +1,12 @@
 
-class GeoHash {
-    
+export interface GeoBounds {
+    ne: [number,number];
+    sw: [number,number];
+}
+
+export class GeoHash {
+    BASE32: string;
+
     constructor() {  
 		/* (Geohash-specific) Base32 map */
 		this.BASE32= "0123456789bcdefghjkmnpqrstuvwxyz";
@@ -9,7 +15,7 @@ class GeoHash {
     /** Encodes latitude/longitude to geohash, to specified precision 
      * returns: string
     */
-    encode(lat, lon, precision=12) {
+    encode(lat:number, lon:number, precision:number=12) {
         if (isNaN(lat) || isNaN(lon) || isNaN(precision)) throw new Error('Invalid geohash');
 
         let idx = 0; // index into base32 map
@@ -58,7 +64,7 @@ class GeoHash {
     /* Returns bounds of specified geohash.
      * returns: {sw: [longitude,latitude], ne: [longitude,latitude]}
     */
-    decode(geohash) {
+    decode(geohash:string) {
         if (geohash.length === 0) throw new Error('Invalid geohash');
         geohash = geohash.toLowerCase();
     
@@ -103,7 +109,7 @@ class GeoHash {
     /* return approximate centre of geohash cell 
      * returns: [lon, lat]
     */
-    center(geohash) {
+    center(geohash:string):[number,number] {
         let bounds = this.decode(geohash); 
         // now just determine the centre of the cell...
         let latMin = bounds.sw[1], lonMin = bounds.sw[0];
@@ -125,20 +131,20 @@ class GeoHash {
      * direction: string - <N,S,E,W>.
      * return: string - Geocode of adjacent cell.
     */
-    adjacent(geohash, direction='n') {
+    adjacent(geohash:string, direction:string='n') {
         geohash = geohash.toLowerCase();
         direction = direction.toLowerCase();
 
         if (geohash.length === 0) throw new Error('Invalid geohash');
         if ('nsew'.indexOf(direction) == -1) throw new Error('Invalid direction');
 
-        let neighbour = {
+        let neighbour:any = {
             n: [ 'p0r21436x8zb9dcf5h7kjnmqesgutwvy', 'bc01fg45238967deuvhjyznpkmstqrwx' ],
             s: [ '14365h7k9dcfesgujnmqp0r2twvyx8zb', '238967debc01fg45kmstqrwxuvhjyznp' ],
             e: [ 'bc01fg45238967deuvhjyznpkmstqrwx', 'p0r21436x8zb9dcf5h7kjnmqesgutwvy' ],
             w: [ '238967debc01fg45kmstqrwxuvhjyznp', '14365h7k9dcfesgujnmqp0r2twvyx8zb' ],
         };
-        let border = {
+        let border:any = {
             n: [ 'prxz',     'bcfguvyz' ],
             s: [ '028b',     '0145hjnp' ],
             e: [ 'bcfguvyz', 'prxz'     ],
@@ -161,7 +167,7 @@ class GeoHash {
     /* Returns all 8 adjacent cells to specified geohash.
      * returns: { n,ne,e,se,s,sw,w,nw: string }
      */
-    neighbours(geohash) {
+    neighbours(geohash:string) {
         return {
             'n':  this.adjacent(geohash, 'n'),
             'ne': this.adjacent(this.adjacent(geohash, 'n'), 'e'),
@@ -175,5 +181,3 @@ class GeoHash {
     };    
 
 }
-
-module.exports= GeoHash

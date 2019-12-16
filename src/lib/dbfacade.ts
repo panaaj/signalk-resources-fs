@@ -1,30 +1,39 @@
+import fs from 'fs';
+import path from 'path';
+import mkdirp from 'mkdirp';
+import { IResourceStore } from 'signalk-plugin-types';
+import { Utils} from './utils';
 
-const PouchDB = require('pouchdb');
+import PouchDB from 'pouchdb';
 PouchDB.plugin(require('pouchdb-find'));
 
-const path= require('path')
-const utils = require('./utils')
-const pkg= require('../package.json')
-
-const ResourceStoreBase= require('./store')
+const pkg= require('../package.json');
 
 // ** File Resource Store Class
-class DBStore extends ResourceStoreBase {
+export class DBStore implements IResourceStore {
 
-    constructor() { super() }
+    utils: Utils;
+    savePath: string;
+    resources: any;
+
+    constructor() { 
+        this.utils= new Utils();
+        this.savePath= '';
+        this.resources= {};
+    }
 	
     // ** check / create path to persist resources
-    async init(config) {
-        let url= false
+    async init(config:any) {
+        let url:boolean= false;
         if(typeof config.settings.path==='undefined') { this.savePath= config.path + '/resources' }
         else if(config.settings.path[0]=='/'){ this.savePath= config.settings.path }
         else if(config.settings.path.indexOf('http')!=-1){ 
-            this.savePath= config.settings.path 
-            url= true
+            this.savePath= config.settings.path;
+            url= true;
         }
         else { this.savePath= path.join(config.path, config.settings.path) }
 
-        let p= await this.checkPath(this.savePath)
+        let p:any= await this.checkPath(this.savePath)
         if(p.error) { return {error: true, message: `Unable to create ${this.savePath}!`} }
         else { 
             return new Promise( (resolve, reject)=> {
@@ -34,13 +43,13 @@ class DBStore extends ResourceStoreBase {
                             try {
                                 let dbPath= (url) 
                                     ? this.savePath + `${(this.savePath.slice(-1)!='/') ? '/' : ''}` + `${i[0]}_db`
-                                    : path.join(this.savePath, `${i[0]}_db`)
+                                    : path.join(this.savePath, `${i[0]}_db`);
                                 
-                                this.resources[i[0]]= new PouchDB(dbPath)
-                                this.resources[i[0]].info().then( info=> {
-                                    console.log(`${info.db_name} (${info.doc_count}) - OK...`)
-                                }).catch(err=> { console.log(err) }); 
-                                resolve( {error: false, message: `OK`} )
+                                this.resources[i[0]]= new PouchDB(dbPath);
+                                this.resources[i[0]].info().then( (info:any)=> {
+                                    console.log(`${info.db_name} (${info.doc_count}) - OK...`);
+                                }).catch( (err:any)=> { console.log(err) }); 
+                                resolve( {error: false, message: `OK`} );
                             }
                             catch(err) { reject( {error: true, message: err} ) }
                         }
@@ -53,17 +62,42 @@ class DBStore extends ResourceStoreBase {
 
     // ** close database /free resources **
     close() { 
-        Object.entries(this.resources).forEach( db=> {
-            db[1].close().then( ()=> console.log(`** ${db[0]} DB closed **`) ) 
+        Object.entries(this.resources).forEach( (db:any)=> {
+            db[1].close().then( ()=> console.log(`** ${db[0]} DB closed **`) );
         })
     }
+
+    // ** check path exists / create it if it doesn't **
+    checkPath(path:string= this.savePath) {
+        return new Promise( (resolve, reject)=> {
+            if(!path) { resolve({error: true, message: `Path not supplied!`}) }
+            fs.access( // check path exists
+                path, 
+                fs.constants.W_OK | fs.constants.R_OK, 
+                err=> {
+                    if(err) {  //if not then create it
+                        console.log(`${path} does NOT exist...`);
+                        console.log(`Creating ${path} ...`);
+                        mkdirp(path, (err)=> {
+                            if(err) { resolve({error: true, message: `Unable to create ${path}!`}) }
+                            else { resolve({error: false, message: `Created ${path} - OK...`}) }
+                        })
+                    }
+                    else { // path exists
+                        console.log(`${path} - OK...`);
+                        resolve({error: false, message: `${path} - OK...`});
+                    }
+                }
+            )
+        })
+    }    
 
     /** return persisted resources from storage OR
      * {error: true, message: string, status: number }
      * ****************************************/
-    async getResources(type=null, item=null, params={}) {
+    async getResources(type:string, item:any=null, params:any={}) {
 		// ** parse supplied params
-        params= utils.processParameters(params) 
+        params= this.utils.processParameters(params) 
         if(params.error) { return params } 	
         try {
             if(item) { // return specified resource
@@ -90,9 +124,9 @@ class DBStore extends ResourceStoreBase {
             value: any (null=delete)
         }
      ***********************************************/
-    async setResource(r) {
+    async setResource(r:any) {
         let err= {error: true, message: ``, status: 404 }
-        if( !utils.isUUID(r.id) ) {
+        if( !this.utils.isUUID(r.id) ) {
             err.message= 'Invalid resource id!'
             return err 
         }
@@ -102,7 +136,7 @@ class DBStore extends ResourceStoreBase {
                 return this.deleteRecord(this.resources[r.type], r.id)
             }
             else {  // ** add / update file
-                if( !utils.validateData(r) ) { // ** invalid SignalK value **
+                if( !this.utils.validateData(r) ) { // ** invalid SignalK value **
                     err.message= 'Invalid resource data!'
                     return err 
                 }
@@ -129,59 +163,59 @@ class DBStore extends ResourceStoreBase {
     }
 
     //*** DB API calls *****
-    async listRecords(db, params={}, type) {
-        let options= { include_docs: true }
-        let result= {}
-        let count=0
+    async listRecords(db:any, params:any={}, type:string) {
+        let options:any= { include_docs: true };
+        let result:any= {};
+        let count:number=0;
         //if(typeof params.limit!=='undefined') { options['limit']= params.limit }
         let entries= await db.allDocs(options)
-        entries.rows.forEach( row=> {
+        entries.rows.forEach( (row:any)=> {
             if(typeof params.limit!=='undefined' && count>= parseInt(params.limit) ) { }
-            else if(utils.passFilter(row.doc.resource, type, params) ) { // ** true if entry meets criteria **
-                result[row.id]= row.doc.resource 
-                count++
+            else if(this.utils.passFilter(row.doc.resource, type, params) ) { // ** true if entry meets criteria **
+                result[row.id]= row.doc.resource; 
+                count++;
             }
         })
-        return result
+        return result;
     }
 
-    async getRecord(db, uuid) {
+    async getRecord(db:any, uuid:string) {
         try {
-            let entry=  await db.get(uuid) 
-            return entry.resource
+            let entry=  await db.get(uuid); 
+            return entry.resource;
         } 
         catch (err) { 
-            console.error(`Fetch ERROR: Resource ${uuid} could not be retrieved!`)
-            return err
+            console.error(`Fetch ERROR: Resource ${uuid} could not be retrieved!`);
+            return err;
         }
     }
 
-    async deleteRecord(db, uuid) {
+    async deleteRecord(db:any, uuid:string) {
         try {
             let entry = await db.get(uuid);
-            return await db.remove(entry._id, entry._rev)
+            return await db.remove(entry._id, entry._rev);
         } 
         catch (err) { 
-            console.error(`Delete ERROR: Resource ${uuid} could not be deleted!`)
-            return err
+            console.error(`Delete ERROR: Resource ${uuid} could not be deleted!`);
+            return err;
         } 
     }
 
-    async newRecord(db, uuid, doc) {
+    async newRecord(db:any, uuid:string, doc:any) {
         try {
             let result=  await db.put({
                 _id: uuid,
                 resource: doc
             });
-            return result
+            return result;
         } 
         catch (err) { 
-            console.error(`Create ERROR: Resource ${uuid} could not be created!`)
-            return err
+            console.error(`Create ERROR: Resource ${uuid} could not be created!`);
+            return err;
         }
     }
     
-    async updateRecord(db, uuid, doc) {
+    async updateRecord(db:any, uuid:string, doc:any) {
         try {
             let entry = await db.get(uuid);
             let result= await db.put({
@@ -189,15 +223,12 @@ class DBStore extends ResourceStoreBase {
                 _rev: entry._rev,
                 resource: doc
             });
-            return result
+            return result;
         } 
         catch (err) { 
-            //console.log(`Update ERROR: Resource ${uuid} was not found... create new resource...`)
-            return err
+            //console.log(`Update ERROR: Resource ${uuid} was not found... create new resource...`);
+            return err;
         }
     }       
 
 }
-
-
-module.exports= new DBStore()

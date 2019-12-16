@@ -1,8 +1,8 @@
 {
     "name": "sk-resources-fs",
-    "version": "1.1.1",
+    "version": "1.2.1",
     "description": "Resources provider plugin for Signal K.",
-    "main": "index.js",
+    "main": "plugin/index.js",
     "keywords": [
         "signalk-node-server-plugin",
         "signalk",
@@ -13,10 +13,21 @@
         "notes"
     ],
     "repository": "https://github.com/panaaj/signalk-resources-fs",
-    "scripts": {},
     "author": "AdrianP",
-    "contributors": [ { "name": "panaaj@hotmail.com"} ],
+    "contributors": [
+        {
+            "name": "panaaj@hotmail.com"
+        }
+    ],
     "license": "Apache-20",
+    "scripts": {
+        "build": "tsc",
+        "build-declaration": "tsc --declaration --allowJs false",
+        "watch": "npm run build -- -w",
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "npm run build -- -w",
+        "prepare": "tsc"
+    },
     "dependencies": {
         "geojson-validation": "^0.2.0",
         "uuid": "^3.3.2",
@@ -24,5 +35,12 @@
         "pouchdb": "^7.1.1",
         "pouchdb-find": "^7.1.1"
     },
-    "devDependencies": {}
+    "devDependencies": {
+        "@types/express": "^4.17.2",
+        "@types/mkdirp": "^0.5.2",
+        "@types/node-fetch": "^2.5.4",
+        "@types/pouchdb": "^6.4.0",
+        "@types/uuid": "^3.4.6",
+        "typescript": "^3.7.3"
+    }
 }
