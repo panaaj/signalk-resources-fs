@@ -5,19 +5,19 @@ import mkdirp from 'mkdirp';
 import { IResourceStore } from 'signalk-plugin-types';
 import { Utils} from './utils';
 
-const pkg= require('../package.json');
-
 // ** File Resource Store Class
 export class FileStore implements IResourceStore {
 
     utils: Utils;
     savePath: string;
     resources: any;
+    pkg: {id:string};
 
-    constructor() { 
+    constructor(pluginId:string='') { 
         this.utils= new Utils();
         this.savePath= '';
         this.resources= {};
+        this.pkg= { id: pluginId };
     }
 
     // ** check / create path to persist resources
@@ -77,7 +77,7 @@ export class FileStore implements IResourceStore {
                 result= JSON.parse(fs.readFileSync( path.join(this.resources[type].path, item) , 'utf8'));
                 let stats = fs.statSync( path.join( this.resources[type].path, item) );
                 result['timestamp'] = stats.mtime;
-                result['$source'] = pkg.name;
+                result['$source'] = this.pkg.id;
                 return result;
             }
             else {	// return matching resources
@@ -96,7 +96,7 @@ export class FileStore implements IResourceStore {
                                     result[uuid]= res;
                                     let stats = fs.statSync(path.join(rt[1].path, files[f]));
                                     result[uuid]['timestamp'] = stats.mtime;
-                                    result[uuid]['$source'] = pkg.name;
+                                    result[uuid]['$source'] = this.pkg.id;
                                 }
                             }
                             catch(err) {
@@ -176,6 +176,8 @@ export class FileStore implements IResourceStore {
             })()
         }      
     }    
+
+    async close() { return true }
 
     // ** check path exists / create it if it doesn't **
     checkPath(path:string= this.savePath) {

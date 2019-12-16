@@ -98,10 +98,6 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     let timers: Array<any>= [];        // interval imers
     let utils: Utils= new Utils();
 
-    let fsAdapter: FileStore= new FileStore(); 
-    let dbAdapter: DBStore= new DBStore();
-    let db:any= dbAdapter;  // active data store 
-
     let plugin: ServerPlugin= {
         id: 'sk-resources-fs',
         name: 'Resources Provider (sk-resources-fs)',
@@ -111,6 +107,10 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         stop: ()=> { doShutdown() },
         signalKApiRoutes: (router:any)=> { return initSKRoutes(router) }
     };
+
+    let fsAdapter: FileStore= new FileStore(plugin.id); 
+    let dbAdapter: DBStore= new DBStore(plugin.id);
+    let db:any= dbAdapter;  // active data store     
 
     let config:any= {
         API: {
@@ -166,7 +166,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
             server.error("error: " + e);
             console.error(e.stack);
             return e;
-        }       
+        }    
     }
 
     const doShutdown= ()=> { 
@@ -177,10 +177,9 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         server.debug('** Stopping Timer(s) **');
         timers.forEach( t=> clearInterval(t) );
         timers= [];    
-        if(db) { db.close().then( ()=> server.debug(`** ${db[0]} DB closed **`) ) }
+        if(db) { db.close().then( ()=> server.debug(`** Store closed **`) ) }
                   
         server.setProviderStatus(`Stopped`);
-        db.close();
     }
 
     // ** Signal K Resources HTTP path handlers **
@@ -234,16 +233,17 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                 router.put(
                     `/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
                     async (req:any, res:any)=> {
-                    let p= formatActionRequest(req)
-                    actionResourceRequest( p.path, p.value)
-                    .then( (r:any)=> {
-                        if(typeof r.error!=='undefined') { 
-                            res.status(r.status).send(r.message);
-                        }
-                        else { res.json(r) }                    
-                    })
-                    .catch (err=> { res.status(500) } ) 
-                });                                   
+                        let p= formatActionRequest(req)
+                        actionResourceRequest( p.path, p.value)
+                        .then( (r:any)=> {
+                            if(typeof r.error!=='undefined') { 
+                                res.status(r.status).send(r.message);
+                            }
+                            else { res.json(r) }                    
+                        })
+                        .catch (err=> { res.status(500) } ) 
+                    }
+                );                                
                 router.delete(
                     `/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
                     async (req:any, res:any)=> {
@@ -270,6 +270,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
             Object.entries(config.API).forEach( ci=>{
                 if(ci[1]) { 
                     server.debug(`** Registering ${ci[0]}  DELTA Action Handler **`);
+                    server.debug(`** resources.${ci[0]} **`);
                     server.registerActionHandler(
                         'vessels.self',
                         `resources.${ci[0]}`,
@@ -282,12 +283,11 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     }
 
     // ** DELTA PUT action handler **
-    const doActionHandler= (context:string, path:string, value:any, cb?:()=>void )=> { 
+    const doActionHandler= (context:string, path:string, value:any, cb:any )=> { 
 		server.debug('DELTA PUT ACTION');
 		return actionResourceRequest( path, value);
 	}
    
-
 
     // *** RESOURCE PROCESSING **************************************
 
@@ -372,7 +372,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
      * http: false: WS formatted status, true: http formatted status **/
     const actionResourceRequest= async (path:string, value:any, http:boolean=false)=> {
         if(path[0]=='.') {path= path.slice(1) }
-        //app.debug(`Path= ${JSON.stringify(path)}, value= ${JSON.stringify(value)}`) 
+        server.debug(`Path= ${JSON.stringify(path)}, value= ${JSON.stringify(value)}`) 
         let r:any={};
         let p:Array<string>= path.split('.');
         let ok:boolean= false; 

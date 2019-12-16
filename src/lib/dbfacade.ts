@@ -7,19 +7,19 @@ import { Utils} from './utils';
 import PouchDB from 'pouchdb';
 PouchDB.plugin(require('pouchdb-find'));
 
-const pkg= require('../package.json');
-
 // ** File Resource Store Class
 export class DBStore implements IResourceStore {
 
     utils: Utils;
     savePath: string;
     resources: any;
+    pkg: {id:string};
 
-    constructor() { 
+    constructor(pluginId:string='') { 
         this.utils= new Utils();
         this.savePath= '';
         this.resources= {};
+        this.pkg= { id: pluginId };
     }
 	
     // ** check / create path to persist resources
@@ -61,10 +61,13 @@ export class DBStore implements IResourceStore {
     }
 
     // ** close database /free resources **
-    close() { 
+    async close() { 
         Object.entries(this.resources).forEach( (db:any)=> {
-            db[1].close().then( ()=> console.log(`** ${db[0]} DB closed **`) );
-        })
+            db[1].close()
+            .then( ()=> console.log(`** ${db[0]} DB closed **`) )
+            .catch( ()=> { console.log(`** ${db[0]} DB already closed **`) });
+        });
+        return true;
     }
 
     // ** check path exists / create it if it doesn't **
@@ -142,7 +145,7 @@ export class DBStore implements IResourceStore {
                 }
                 // add source / timestamp
                 r.value.timestamp= new Date().toISOString()
-                if(typeof r.value.$source === 'undefined') { r.value.$source= pkg.name }
+                if(typeof r.value.$source === 'undefined') { r.value.$source= this.pkg.id }
 
                 // update / add resource 
                 let result= await this.updateRecord(this.resources[r.type], r.id, r.value)
