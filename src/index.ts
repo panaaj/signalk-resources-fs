@@ -13,7 +13,7 @@
 * limitations under the License.
 */
 
-import { ServerPlugin, ServerAPI } from 'signalk-plugin-types';
+import { ServerPlugin, ServerAPI, ActionResult } from 'signalk-plugin-types';
 
 import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';
@@ -198,8 +198,8 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     req.query['position']= getVesselPosition()
                     compileHttpGetResponse(req, true)
                     .then( r=> {
-                        if(typeof r.error!=='undefined') { 
-                            res.status(r.status).send(r.message);
+                        if(r.statusCode>=400) { 
+                            res.status(r.statusCode).send(r.message);
                         }
                         else { res.json(r) }                    
                     })
@@ -210,8 +210,8 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     async (req:any, res:any)=> {
                     compileHttpGetResponse(req)
                     .then( r=> {
-                        if(typeof r.error!=='undefined') { 
-                            res.status(r.status).send(r.message);
+                        if(r.statusCode>=400) { 
+                            res.status(r.statusCode).send(r.message);
                         }
                         else { res.json(r) }                    
                     })
@@ -221,10 +221,10 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     `/resources/${ci[0]}`, 
                     async (req:any, res:any)=> {
                     let p= formatActionRequest(req)
-                    actionResourceRequest( p.path, p.value) 
+                    actionResourceRequest('', p.path, p.value) 
                     .then( (r:any)=> {
-                        if(typeof r.error!=='undefined') { 
-                            res.status(r.status).send(r.message);
+                        if(r.statusCode>=400) { 
+                            res.status(r.statusCode).send(r.message);
                         }
                         else { res.json(r) }                    
                     })
@@ -234,10 +234,10 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     `/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
                     async (req:any, res:any)=> {
                         let p= formatActionRequest(req)
-                        actionResourceRequest( p.path, p.value)
+                        actionResourceRequest('', p.path, p.value)
                         .then( (r:any)=> {
-                            if(typeof r.error!=='undefined') { 
-                                res.status(r.status).send(r.message);
+                            if(r.statusCode>=400) { 
+                                res.status(r.statusCode).send(r.message);
                             }
                             else { res.json(r) }                    
                         })
@@ -248,10 +248,10 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     `/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
                     async (req:any, res:any)=> {
                     let p= formatActionRequest(req, true);
-                    actionResourceRequest( p.path, p.value)
+                    actionResourceRequest('', p.path, p.value)
                     .then( (r:any)=> {
-                        if(typeof r.error!=='undefined') { 
-                            res.status(r.status).send(r.message);
+                        if(r.statusCode>=400) { 
+                            res.status(r.statusCode).send(r.message);
                         }
                         else { res.json(r) }                    
                     })
@@ -274,19 +274,17 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     server.registerPutHandler(
                         'vessels.self',
                         `resources.${ci[0]}`,
-                        doActionHandler
+                        (context, path, value, cb)=> { 
+                            server.debug('DELTA PUT ACTION');
+                            actionResourceRequest(context, path, value)
+                            .then( result=>{ cb(result) } );
+                            return { state: 'PENDING', statusCode: 202, message: 'PENDING'};
+                        }
                     ); 
                 }
             });                           
         }         
     }
-
-    // ** DELTA PUT action handler **
-    const doActionHandler= (context:string, path:string, value:any, cb:any )=> { 
-		server.debug('DELTA PUT ACTION');
-		return actionResourceRequest( path, value);
-	}
-   
 
     // *** RESOURCE PROCESSING **************************************
 
@@ -295,13 +293,19 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
      * list: true: resource list, false: single entry
      * *******************************/
     const compileHttpGetResponse= async (req:any, list:boolean=false)=> {
-        let err= {error: true, message: `Cannot GET ${req.path}`, status: 404 };
+        let err= { 
+            state: 'COMPLETED', 
+            message: `Cannot GET ${req.path}`, 
+            statusCode: 404
+        };
 
         let p:any= parsePath(req.path);
         if(!p.type) { return err }
  
         if(list) { // retrieve resource list
-            return await db.getResources(p.type, null, req.query); 
+            let r= await db.getResources(p.type, null, req.query);      
+            if(typeof r.error==='undefined') { return r }
+            else { return err }             
         }
         else { // retrieve resource entry
             let r= await db.getResources(p.type, p.uuid);
@@ -358,28 +362,19 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         return result;
     }
 
-    // ** format actionRequest response message for http request 
-    const formatHttpResult= (value:any)=> {
-        return { 
-            error: (value.statusCode>=400) ? true : false,
-            status: value.statusCode,
-            message: value.message
-        };
-    }
-
     /** handle Resource POST, PUT, DELETE requests 
      * http: false: WS formatted status, true: http formatted status **/
-    const actionResourceRequest= async (path:string, value:any, http:boolean=false)=> {
+    const actionResourceRequest= async ( context:string, path:string, value:any):Promise<ActionResult> => {
         if(path[0]=='.') {path= path.slice(1) }
         server.debug(`Path= ${JSON.stringify(path)}, value= ${JSON.stringify(value)}`) 
-        let r:any={};
+        let r:any= {};
         let p:Array<string>= path.split('.');
         let ok:boolean= false; 
-        let result:any;
+        let result:ActionResult;
         if(config.API) {
             Object.entries(config.API).forEach( i=> { 
                 if(path.indexOf(i[0])!=-1 && i[1] ) { ok= true }
-            })
+            });
         }  
   
         if( ok ) {  // enabled resource type
@@ -389,23 +384,19 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
             r.value= v[0][1];                        // resource_data
             // ** test for valid resource identifier
             if( !utils.isUUID(r.id) ) {
-                result= { 
+                return { 
                     state: 'COMPLETED', 
-                    resultStatus: 400, 
                     statusCode: 400,
                     message: `Invalid resource id!` 
                 };
-                return (http) ? formatHttpResult(result) : result;
             }
         }
         else { 
-            result= { 
+            return { 
                 state: 'COMPLETED', 
-                resultStatus: 400, 
                 statusCode: 400,
                 message: `Invalid path!` 
-            };  
-            return (http) ? formatHttpResult(result) : result;  
+            };   
         }
 
         switch(r.type) {
@@ -413,31 +404,27 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
             case 'waypoints':
             case 'notes':
             case 'regions':
-                result= await db.setResource(r);        
-                if(typeof result.error==='undefined') { // OK
+                let dbop= await db.setResource(r);        
+                if(typeof dbop.error==='undefined') { // OK
                     sendDelta(r);
-                    result= { state: 'COMPLETED', resultStatus: 200, statusCode: 200 };
-                    return (http) ? formatHttpResult(result) : result;
+                    result= { state: 'COMPLETED', message:'COMPLETED', statusCode: 200 };
                 }
                 else {  // error
                     result= { 
                         state: 'COMPLETED', 
-                        resultStatus: 502, 
                         statusCode: 502,
                         message: `Error updating resource!` 
-                    };
-                    return (http) ? formatHttpResult(result) : result;                
+                    };               
                 }              
                 break;
             default:
                 result= { 
                     state: 'COMPLETED', 
-                    resultStatus: 400, 
                     statusCode: 400,
                     message: `Invalid resource type (${r.type})!` 
                 };
-                return (http) ? formatHttpResult(result) : result;
         }
+        return result;
     } 
      
     // ** send delta message for resource
