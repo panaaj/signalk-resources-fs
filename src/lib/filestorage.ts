@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import mkdirp from 'mkdirp';
-import { IResourceStore } from 'signalk-plugin-types';
+import { IResourceStore } from '../index.d';
 import { Utils} from './utils';
 
 // ** File Resource Store Class

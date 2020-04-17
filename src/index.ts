@@ -13,7 +13,7 @@
 * limitations under the License.
 */
 
-import { ServerPlugin, ServerAPI, ActionResult } from 'signalk-plugin-types';
+import { ServerPlugin, ServerAPI, ActionResult } from './index.d';
 
 import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';

@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import mkdirp from 'mkdirp';
-import { IResourceStore } from 'signalk-plugin-types';
-import { Utils} from './utils';
+import { IResourceStore } from '../index.d';
+import { Utils } from './utils';
 
 import PouchDB from 'pouchdb';
 PouchDB.plugin(require('pouchdb-find'));
