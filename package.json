@@ -1,6 +1,6 @@
 {
     "name": "sk-resources-fs",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "Resources provider plugin for Signal K.",
     "main": "plugin/index.js",
     "keywords": [

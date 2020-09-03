@@ -1,5 +1,9 @@
 # CHANGELOG: SK-RESOURCES-FS
 
+### v1.2.1
+
+- Add validation when retrieving data from file storage.
+
 ### v1.2.0
 
 - Converted to `Typescript`.
