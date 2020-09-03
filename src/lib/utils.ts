@@ -110,7 +110,8 @@ export class Utils {
 		try {
 			if(!r.feature || !geoJSON.valid(r.feature)) { 
 				return false;
-			}
+            }
+            if(r.feature.geometry.type!=='LineString') { return false }
 		}
 		catch(e) { console.log(e); return false }
         return true;
@@ -123,7 +124,8 @@ export class Utils {
 		try {
 			if(!r.feature || !geoJSON.valid(r.feature)) { 
 				return false; 
-			}
+            }
+            if(r.feature.geometry.type!=='Point') { return false }
 		}
 		catch(e) { console.log(e); return false }
         return true;
@@ -146,9 +148,10 @@ export class Utils {
         if(!r.geohash && !r.feature) { return false } 
         if(r.feature ) {
 			try {
-				if(!geoJSON.valid(r.feature)) { 
-					return false;
-				}
+                if(!geoJSON.valid(r.feature)) { return false }
+                if(r.feature.geometry.type!=='Polygon' && r.feature.geometry.type!=='MultiPolygon') { 
+                    return false;
+                }
 				return true;
 			}
 			catch(e) { console.log(e); return false; }

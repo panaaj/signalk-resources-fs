@@ -75,9 +75,19 @@ export class FileStore implements IResourceStore {
             if(item) { // return specified resource
                 item= item.split(':').slice(-1)[0];
                 result= JSON.parse(fs.readFileSync( path.join(this.resources[type].path, item) , 'utf8'));
-                let stats = fs.statSync( path.join( this.resources[type].path, item) );
-                result['timestamp'] = stats.mtime;
-                result['$source'] = this.pkg.id;
+                if(this.utils.validateData({type: type, value: result })) {
+                    let stats = fs.statSync( path.join( this.resources[type].path, item) );
+                    result['timestamp'] = stats.mtime;
+                    result['$source'] = this.pkg.id;
+                }
+                else {
+                    console.log('** ERROR: INVALID RESOURCE DATA **');
+                    result= {
+                        error: true, 
+                        message: `Invalid Resource data!`,
+                        status: 400
+                    };
+                }
                 return result;
             }
             else {	// return matching resources
@@ -91,12 +101,14 @@ export class FileStore implements IResourceStore {
                             let uuid= this.utils.uuidPrefix + files[f];
                             try {
                                 let res= JSON.parse(fs.readFileSync( path.join(rt[1].path, files[f]) , 'utf8'));
-                                // ** apply param filters **
-                                if( this.utils.passFilter(res, rt[0], params) ) {
-                                    result[uuid]= res;
-                                    let stats = fs.statSync(path.join(rt[1].path, files[f]));
-                                    result[uuid]['timestamp'] = stats.mtime;
-                                    result[uuid]['$source'] = this.pkg.id;
+                                if(this.utils.validateData({type: rt[0], value: res })) {
+                                    // ** apply param filters **
+                                    if( this.utils.passFilter(res, rt[0], params) ) {
+                                        result[uuid]= res;
+                                        let stats = fs.statSync(path.join(rt[1].path, files[f]));
+                                        result[uuid]['timestamp'] = stats.mtime;
+                                        result[uuid]['$source'] = this.pkg.id;
+                                    }
                                 }
                             }
                             catch(err) {
