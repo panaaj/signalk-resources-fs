@@ -13,7 +13,7 @@
 * limitations under the License.
 */
 
-import { ServerPlugin, ServerAPI, ActionResult } from './index.d';
+import { ServerPlugin, ServerAPI, ActionResult, DeltaUpdate, DeltaMessage } from '@panaaj/sk-types';
 
 import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';
@@ -431,10 +431,16 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     const sendDelta= (r:any)=> {
         let key= r.id;
         let p= `resources.${r.type}.${key}`;
-        let val= [{path: p, value: r.value}];
+        let val:Array<DeltaMessage>= [
+            {
+                path: p, 
+                value: r.value
+            }
+        ];
         server.debug(`****** Send Delta: ******`);
-        server.debug(JSON.stringify({updates: [ {values: val} ] }));
-        server.handleMessage(plugin.id, {updates: [ {values: val} ] });
+        let msg: DeltaUpdate= {updates: [ {values: val} ] }
+        server.debug(JSON.stringify(msg));
+        server.handleMessage(plugin.id, msg);
     }
 
     const getVesselPosition= ()=> {

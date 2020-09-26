@@ -1,6 +1,6 @@
 {
     "name": "sk-resources-fs",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "Resources provider plugin for Signal K.",
     "main": "plugin/index.js",
     "keywords": [
@@ -36,6 +36,7 @@
         "uuid": "^3.4.0"
     },
     "devDependencies": {
+        "@panaaj/sk-types": "^1.0.0",
         "@types/express": "^4.17.6",
         "@types/mkdirp": "^0.5.2",
         "@types/node-fetch": "^2.5.6",
