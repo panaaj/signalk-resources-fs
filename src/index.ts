@@ -13,7 +13,8 @@
 * limitations under the License.
 */
 
-import { ServerPlugin, ServerAPI, ActionResult, DeltaUpdate, DeltaMessage } from '@panaaj/sk-types';
+import { ServerPlugin, ServerAPI, ActionResult, 
+        DeltaUpdate, DeltaMessage } from './types/server';
 
 import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';
@@ -142,27 +143,35 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
             db.init({settings: config, path: server.config.configPath})
             .then( (res:any)=> {
 				if(res.error) {
-					server.error(`*** ERROR: ${res.message} ***`);
-					server.setProviderError(res.message);			
+                    let msg:string= `*** ERROR: ${res.message} ***`;
+					server.error(msg);                   
+                    if(typeof server.setPluginError === 'function') { server.setPluginError(msg) }
+                    else { server.setProviderError(msg) }		
                 }
                 let ae= 'Handling:';
                 ae+= (config.API && config.API.routes) ? ' Routes, ' : '';
                 ae+= (config.API && config.API.waypoints) ? ' Waypoints, ' : '';
                 ae+= (config.API && config.API.notes) ? ' Notes, ' : '';
                 ae+= (config.API && config.API.regions) ? ' Regions, ' : '';
-                server.setProviderStatus(`Started. ${ae}`);
                 server.debug(`** ${plugin.name} started... ${(!res.error) ? 'OK' : 'with errors!'}`);    
+                let msg:string= `Started. ${ae}`;       
+                if(typeof server.setPluginStatus === 'function') { server.setPluginStatus(msg) }
+                else { server.setProviderStatus(msg) }                
             })
             .catch( (e:any)=> { 
                 server.debug(e);
-                server.setProviderStatus(`Initialisation Error! See console for details.`); 
+                let msg:string= `Initialisation Error! See console for details.`;       
+                if(typeof server.setPluginError === 'function') { server.setPluginError(msg) }
+                else { server.setProviderError(msg) }
             } );
 
             // ** initialise Delta PUT handlers **
             setupDeltaPUT();
         } 
         catch (e) {
-            server.setProviderError(`Started with errors!`);
+            let msg:string= `Started with errors!`;       
+            if(typeof server.setPluginError === 'function') { server.setPluginError(msg) }
+            else { server.setProviderError(msg) }
             server.error("error: " + e);
             console.error(e.stack);
             return e;

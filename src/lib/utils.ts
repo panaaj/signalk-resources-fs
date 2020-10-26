@@ -2,6 +2,7 @@
 
 import { GeoHash, GeoBounds } from './geo';
 import geoJSON from 'geojson-validation';
+import { Route, Waypoint, Note, Region } from '../types/resources';
 
 
 export class Utils {
@@ -101,7 +102,7 @@ export class Utils {
     } 
     
     // ** validate route data
-    validateRoute(r:any):boolean {   
+    validateRoute(r:Route):boolean {   
         if(typeof r.name == 'undefined') { return false }
         if(typeof r.description == 'undefined') { return false }
         if(typeof r.distance == 'undefined' || isNaN(r.distance)) { return false }
@@ -118,7 +119,7 @@ export class Utils {
     }
 
     // ** validate waypoint data
-    validateWaypoint(r:any):boolean { 
+    validateWaypoint(r:Waypoint):boolean { 
         if(!r.position) { return false } 
         if(!r.position.latitude || !r.position.longitude) { return false } 
 		try {
@@ -132,7 +133,7 @@ export class Utils {
     }
 
     // ** validate note data
-    validateNote(r:any):boolean {  
+    validateNote(r:Note):boolean {  
         if(!r.region && !r.position && !r.geohash ) { return false } 
         if(typeof r.position!== 'undefined') {
             if(!r.position.latitude || !r.position.longitude) { return false } 
@@ -144,7 +145,7 @@ export class Utils {
     }
     
     // ** validate region data
-    validateRegion(r:any):boolean {  
+    validateRegion(r:Region):boolean {  
         if(!r.geohash && !r.feature) { return false } 
         if(r.feature ) {
 			try {
