@@ -2,7 +2,7 @@
 
 import { GeoHash, GeoBounds } from './geo';
 import geoJSON from 'geojson-validation';
-import { Route, Waypoint, Note, Region } from '../types/resources';
+import { Route, Waypoint, Note, Region } from '@panaaj/sk-types';
 
 
 export class Utils {

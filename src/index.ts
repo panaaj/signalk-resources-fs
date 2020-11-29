@@ -14,7 +14,7 @@
 */
 
 import { ServerPlugin, ServerAPI, ActionResult, 
-        DeltaUpdate, DeltaMessage } from './types/server';
+        DeltaUpdate, DeltaMessage } from '@panaaj/sk-types';
 
 import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';
