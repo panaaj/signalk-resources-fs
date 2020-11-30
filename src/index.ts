@@ -211,8 +211,9 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         timers.forEach( t=> clearInterval(t) );
         timers= [];    
         if(db) { db.close().then( ()=> server.debug(`** Store closed **`) ) }
-                  
-        server.setProviderStatus(`Stopped`);
+        let msg= 'Stopped.';
+        if(typeof server.setPluginStatus === 'function') { server.setPluginStatus(msg) }
+        else { server.setProviderStatus(msg) }	
     }
 
     // ** Signal K Resources HTTP path handlers **
@@ -431,32 +432,20 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                 message: `Invalid path!` 
             };   
         }
-
-        switch(r.type) {
-            case 'routes': 
-            case 'waypoints':
-            case 'notes':
-            case 'regions':
-                let dbop= await db.setResource(r);        
-                if(typeof dbop.error==='undefined') { // OK
-                    sendDelta(r);
-                    result= { state: 'COMPLETED', message:'COMPLETED', statusCode: 200 };
-                }
-                else {  // error
-                    result= { 
-                        state: 'COMPLETED', 
-                        statusCode: 502,
-                        message: `Error updating resource!` 
-                    };               
-                }              
-                break;
-            default:
-                result= { 
-                    state: 'COMPLETED', 
-                    statusCode: 400,
-                    message: `Invalid resource type (${r.type})!` 
-                };
+        // store action
+        let dbop= await db.setResource(r);        
+        if(typeof dbop.error==='undefined') { // OK
+            sendDelta(r);
+            result= { state: 'COMPLETED', message:'COMPLETED', statusCode: 200 };
         }
+        else {  // error
+            result= { 
+                state: 'COMPLETED', 
+                statusCode: 502,
+                message: `Error updating resource!` 
+            };               
+        }              
+
         return result;
     } 
      

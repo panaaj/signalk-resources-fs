@@ -97,7 +97,7 @@ export class Utils {
                 return this.validateRegion(r.value);
                 break;                   
             default:
-                return false;             
+                return true;             
         }      
     } 
     
