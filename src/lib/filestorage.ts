@@ -25,16 +25,24 @@ export class FileStore implements IResourceStore {
         if(typeof config.settings.path==='undefined') { this.savePath= config.path + '/resources' }
         else if(config.settings.path[0]=='/'){ this.savePath= config.settings.path }
         else { this.savePath= path.join(config.path, config.settings.path) }
-
+        // std resources
         if(config.settings.API) {
-            Object.keys(config.settings.API).forEach( i=>{
+            Object.keys(config.settings.API).forEach( (i:any)=>{
                 this.resources[i]= {path: path.join(this.savePath, `/${i}`)};
+            });
+        }	
+        // other resources
+        let enabledResTypes= JSON.parse(JSON.stringify(config.settings.API));
+        if(config.settings.resourcesOther && Array.isArray(config.settings.resourcesOther) ) {
+            config.settings.resourcesOther.forEach( (i:any)=>{
+                this.resources[i]= {path: path.join(this.savePath, `/${i.name}`)};
+                enabledResTypes[i]= true;
             });
         }	
 
         let p:any= await this.checkPath(this.savePath);
         if(p.error) { return {error: true, message: `Unable to create ${this.savePath}!`} }
-        else { return this.createSavePaths(config.settings.API) }        
+        else { return this.createSavePaths(enabledResTypes) }        
     }
 
     // ** create save paths for resource types

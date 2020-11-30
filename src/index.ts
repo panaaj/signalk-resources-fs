@@ -22,10 +22,11 @@ import { Utils} from './lib/utils';
 import uuid from 'uuid/v4';
 
 const CONFIG_SCHEMA= {
-    properties: {  
+    properties: { 
         API: {
             type: "object",
-            description: 'ENABLE / DISABLE `/signalk/api/resources` path handling.',
+            title: "Resources (standard)",
+            description: 'ENABLE / DISABLE `/signalk/v1/api/resources` path handling.',
             properties: {
                 routes: {
                     type: "boolean", 
@@ -45,6 +46,22 @@ const CONFIG_SCHEMA= {
                 }                    
             }
         },
+        resourcesOther: {
+            type: "array",
+            title: "Resources (other)",
+            description: "Define paths for additional resource types.",
+            items: {
+              type: "object",
+              required: [ 'name' ],
+              properties: {
+                name: {
+                  type: 'string',
+                  title: 'Name',
+                  description: 'Path name to use /signalk/v1/api/resources/<name>'
+                }
+              }
+            }         
+        },       
         source: {
             type: "string",
             title: "Select type of Resource data store to use.",
@@ -65,22 +82,22 @@ const CONFIG_UISCHEMA= {
         routes: {
             "ui:widget": "checkbox",
             "ui:title": "NOTE: Changing these selections will require a server re-start before they take effect!",
-            "ui:help": "/signalk/api/resources/routes"
+            "ui:help": "/signalk/v1/api/resources/routes"
         },
         waypoints: {
             "ui:widget": "checkbox",
             "ui:title": " ",
-            "ui:help": "/signalk/api/resources/waypoints"
+            "ui:help": "/signalk/v1/api/resources/waypoints"
         },
         notes: {
             "ui:widget": "checkbox",
             "ui:title": " ",
-            "ui:help": "/signalk/api/resources/notes"
+            "ui:help": "/signalk/v1/api/resources/notes"
         },
         regions: {
             "ui:widget": "checkbox",
             "ui:title": " ",
-            "ui:help": "/signalk/api/resources/regions"
+            "ui:help": "/signalk/v1/api/resources/regions"
         }                          
     },
     SOURCE: {
@@ -122,6 +139,8 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         }
     };
 
+    let enabledResTypes: any;
+
     const doStartup= (options:any, restart:any)=> { 
         try {
             server.debug(`${plugin.name} starting.......`);
@@ -139,6 +158,11 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                         db= fsAdapter; 
                 }
             }
+            // compile enabled resource types list
+            enabledResTypes= JSON.parse(JSON.stringify(config.API));
+            if(config.resourcesOther && Array.isArray(config.resourcesOther) ) {
+                config.resourcesOther.forEach( (i:any)=>{ enabledResTypes[i.name]= true });
+            }            
 			// ** initialise resource storage
             db.init({settings: config, path: server.config.configPath})
             .then( (res:any)=> {
@@ -148,11 +172,11 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     if(typeof server.setPluginError === 'function') { server.setPluginError(msg) }
                     else { server.setProviderError(msg) }		
                 }
-                let ae= 'Handling:';
-                ae+= (config.API && config.API.routes) ? ' Routes, ' : '';
-                ae+= (config.API && config.API.waypoints) ? ' Waypoints, ' : '';
-                ae+= (config.API && config.API.notes) ? ' Notes, ' : '';
-                ae+= (config.API && config.API.regions) ? ' Regions, ' : '';
+
+                let ae= 'Handling: ';
+                for( let i in enabledResTypes) {
+                    ae+= (enabledResTypes[i]) ? `${i},` : '';
+                }
                 server.debug(`** ${plugin.name} started... ${(!res.error) ? 'OK' : 'with errors!'}`);    
                 let msg:string= `Started. ${ae}`;       
                 if(typeof server.setPluginStatus === 'function') { server.setPluginStatus(msg) }
@@ -193,7 +217,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
 
     // ** Signal K Resources HTTP path handlers **
     const initSKRoutes= (router:any)=> {
-        Object.entries(config.API).forEach( ci=>{
+        Object.entries(enabledResTypes).forEach( ci=>{
             if(ci[1]) {
                 server.debug(`** Registering ${ci[0]} API paths **`);
                 router.get(
@@ -276,7 +300,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     // ** register DELTA PUT handlers **
     const setupDeltaPUT= ()=> {
         if(server.registerPutHandler) {
-            Object.entries(config.API).forEach( ci=>{
+            Object.entries(enabledResTypes).forEach( ci=>{
                 if(ci[1]) { 
                     server.debug(`** Registering ${ci[0]}  DELTA Action Handler **`);
                     server.debug(`** resources.${ci[0]} **`);
@@ -380,8 +404,8 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         let p:Array<string>= path.split('.');
         let ok:boolean= false; 
         let result:ActionResult;
-        if(config.API) {
-            Object.entries(config.API).forEach( i=> { 
+        if(enabledResTypes) {
+            Object.entries(enabledResTypes).forEach( i=> { 
                 if(path.indexOf(i[0])!=-1 && i[1] ) { ok= true }
             });
         }  
