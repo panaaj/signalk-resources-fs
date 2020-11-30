@@ -1,5 +1,9 @@
 # CHANGELOG: SK-RESOURCES-FS
 
+### v1.3.0
+
+- Add capability to define additional resource paths.
+
 ### v1.2.1
 
 - Add validation when retrieving data from file storage.
