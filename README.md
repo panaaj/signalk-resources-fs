@@ -7,6 +7,7 @@ This Signal K node server plugin acts as a resource provider for the following r
 - `resources/waypoints`
 - `resources/notes`
 - `resources/regions`   
+
 as well as allowing the user to define additional paths under `/signalk/v1/api/resources` to serve user provided resource data sets.
 
 Each path is provisioned with `GET`, `PUT`, `POST` and `DELETE` operations enabled.
