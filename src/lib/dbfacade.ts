@@ -42,8 +42,8 @@ export class DBStore implements IResourceStore {
                     let enabledResTypes= JSON.parse(JSON.stringify(config.settings.API));
                     if(config.settings.resourcesOther && Array.isArray(config.settings.resourcesOther) ) {
                         config.settings.resourcesOther.forEach( (i:any)=>{
-                            this.resources[i]= {path: path.join(this.savePath, `/${i.name}`)};
-                            enabledResTypes[i]= true;
+                            this.resources[i.name]= {path: path.join(this.savePath, `/${i.name}`)};
+                            enabledResTypes[i.name]= true;
                         });
                     }                
                     Object.entries(enabledResTypes).forEach( i=>{ 

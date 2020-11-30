@@ -35,8 +35,8 @@ export class FileStore implements IResourceStore {
         let enabledResTypes= JSON.parse(JSON.stringify(config.settings.API));
         if(config.settings.resourcesOther && Array.isArray(config.settings.resourcesOther) ) {
             config.settings.resourcesOther.forEach( (i:any)=>{
-                this.resources[i]= {path: path.join(this.savePath, `/${i.name}`)};
-                enabledResTypes[i]= true;
+                this.resources[i.name]= {path: path.join(this.savePath, `/${i.name}`)};
+                enabledResTypes[i.name]= true;
             });
         }	
 
@@ -145,6 +145,7 @@ export class FileStore implements IResourceStore {
 
     // ** save / delete (r.value==null) resource file
     async setResource(r:any) {
+        //console.log('setResource()', r);
         let err= {error: true, message: ``, status: 404 }
         if( !this.utils.isUUID(r.id) ) {
             err.message= 'Invalid resource id!';
