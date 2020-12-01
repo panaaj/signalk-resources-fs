@@ -29,7 +29,7 @@
         "prepare": "tsc"
     },
     "dependencies": {
-        "@panaaj/sk-types": "^1.1.0",
+        "@panaaj/sk-types": "^1.1.1",
         "geojson-validation": "^0.2.0",
         "mkdirp": "^0.5.5",
         "pouchdb": "^7.2.1",
