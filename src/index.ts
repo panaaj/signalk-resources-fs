@@ -219,6 +219,17 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     // ** Signal K Resources HTTP path handlers **
     const initSKRoutes= (router:any)=> {
         Object.entries(enabledResTypes).forEach( ci=>{
+            server.debug(`** Registering resource path **`);
+            router.get(
+                `/resources`, 
+                (req:any, res:any)=> {
+                    // compile enabled resource types list
+                    let actRes:Array<string>= [];
+                    Object.entries(enabledResTypes).forEach( r=> {
+                        if(r[1]) { actRes.push(r[0]) }
+                    });
+                    res.json(actRes);
+            });              
             if(ci[1]) {
                 server.debug(`** Registering ${ci[0]} API paths **`);
                 router.get(
