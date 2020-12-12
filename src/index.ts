@@ -122,8 +122,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         schema: ()=> (CONFIG_SCHEMA),
         uiSchema: ()=> (CONFIG_UISCHEMA),   
         start: (options:any, restart:any)=> { doStartup( options, restart ) },
-        stop: ()=> { doShutdown() },
-        signalKApiRoutes: (router:any)=> { return initSKRoutes(router) }
+        stop: ()=> { doShutdown() }
     };
 
     let fsAdapter: FileStore= new FileStore(plugin.id); 
@@ -191,6 +190,8 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
 
             // ** initialise Delta PUT handlers **
             setupDeltaPUT();
+            server.debug(`** Registering resource paths **`);
+            initRoutes();
         } 
         catch (e) {
             let msg:string= `Started with errors!`;       
@@ -217,28 +218,37 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     }
 
     // ** Signal K Resources HTTP path handlers **
-    const initSKRoutes= (router:any)=> {
+    const initRoutes= ()=> {
+        let router: any = server;
+        // add /signalk/v1/api/resources route
+        server.debug(`** Registering /signalk/v1/api/resources path **`);
+        router.get(
+            `/signalk/v1/api/resources`, 
+            (req:any, res:any)=> {
+                let app: any = server;
+                let resRoutes:Array<string>= [];
+                app._router.stack.forEach((i:any)=> {
+                    if(i.route && i.route.path && typeof i.route.path==='string') {
+                        if(i.route.path.indexOf('/signalk/v1/api/resources')!=-1) {
+                            let r= i.route.path.split('/');
+                            if( r.length>5 && !resRoutes.includes(r[5]) ) { resRoutes.push(r[5]) }
+                        }
+                    }
+                });
+                res.json(resRoutes);
+        });    
+        // add routes for each resource type
         Object.entries(enabledResTypes).forEach( ci=>{
             server.debug(`** Registering resource path **`);
-            router.get(
-                `/resources`, 
-                (req:any, res:any)=> {
-                    // compile enabled resource types list
-                    let actRes:Array<string>= [];
-                    Object.entries(enabledResTypes).forEach( r=> {
-                        if(r[1]) { actRes.push(r[0]) }
-                    });
-                    res.json(actRes);
-            });              
             if(ci[1]) {
                 server.debug(`** Registering ${ci[0]} API paths **`);
                 router.get(
-                    `/resources/${ci[0]}/meta`, 
+                    `/signalk/v1/api/resources/${ci[0]}/meta`, 
                     (req:any, res:any)=> {
                     res.json( {description: `Collection of ${ci[0]}, each named with a UUID`} );
                 });          
                 router.get(
-                    `/resources/${ci[0]}`, 
+                    `/signalk/v1/api/resources/${ci[0]}`, 
                     async (req:any, res:any)=> {
                     req.query['position']= getVesselPosition()
                     compileHttpGetResponse(req, true)
@@ -251,7 +261,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     .catch (err=> { res.status(500) } )
                 });
                 router.get(
-                    `/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
+                    `/signalk/v1/api/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
                     async (req:any, res:any)=> {
                     compileHttpGetResponse(req)
                     .then( r=> {
@@ -263,7 +273,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     .catch (err=> { res.status(500) } ) 
                 });  
                 router.post(
-                    `/resources/${ci[0]}`, 
+                    `/signalk/v1/api/resources/${ci[0]}`, 
                     async (req:any, res:any)=> {
                     let p= formatActionRequest(req)
                     actionResourceRequest('', p.path, p.value) 
@@ -276,7 +286,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     .catch (err=> { res.status(500) } ) 
                 });
                 router.put(
-                    `/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
+                    `/signalk/v1/api/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
                     async (req:any, res:any)=> {
                         let p= formatActionRequest(req)
                         actionResourceRequest('', p.path, p.value)
@@ -290,7 +300,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                     }
                 );                                
                 router.delete(
-                    `/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
+                    `/signalk/v1/api/resources/${ci[0]}/${utils.uuidPrefix}*-*-*-*-*`, 
                     async (req:any, res:any)=> {
                     let p= formatActionRequest(req, true);
                     actionResourceRequest('', p.path, p.value)
@@ -304,7 +314,6 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                 });
             }
         })    
-        return router;
     }
 
     // *** SETUP ROUTE HANDLING **************************************
@@ -364,33 +373,39 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     }
 
     // ** parse provided path to resource type, uuid and attributes
-    const parsePath= (path:string)=> {
+    // path: /signalk/v1/api/resources/<restype>/<uuid>/<attribute>
+    const parsePath= (path:string)=> { 
         let res:any= {
             type: null,
             uuid: null,
             attribute: null
         };
         let a:Array<string>= path.split('/');
-        res.type= a[2];  // set resource type
+        server.debug(path);
+        server.debug(a.toString());
+        res.type= a[5];  // set resource type
         if( utils.isUUID(a[a.length-1]) ) { res.uuid= a[a.length-1] }
         else {  
-            if( utils.isUUID(a[3]) ) {
-                server.debug(a[3]);
-                res.uuid= a[3].slice(a[3].lastIndexOf(':')+1);
-                res.attribute= a.slice(4).join('.');
+            if( a.length>6 && utils.isUUID(a[6]) ) {
+                server.debug(a[6]);
+                res.uuid= a[6].slice(a[6].lastIndexOf(':')+1);
+                res.attribute= a.slice(7).join('.');
             }
         }
         server.debug(res);
         return res;
     }
 
-    /** format http request path for action request 
-     * forDelete: true= returned value=null, false= returned value= req.body
+    /** format http request path for HTTP PUT, POST, DELETE (via router)
+     * req.path: /signalk/v1/api/resources/<restype>/<uuid>
+     * forDelete: true= returned value=null
      * returns: { path: string, value: {id: string} } **/
     const formatActionRequest= (req:any, forDelete:boolean=false)=> {
+        server.debug(req.path);
         let result:any= {path: null, value: {} };
         let id:string;
-        let p:Array<string>= req.path.slice(1).split('/');
+        let p:Array<string>= req.path.split('/').slice(4);
+        server.debug(p.toString());
         if(p.length==2) { 
             result.path= p.join('.');
             id= utils.uuidPrefix + uuid();
