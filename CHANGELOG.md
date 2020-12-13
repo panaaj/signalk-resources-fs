@@ -6,7 +6,7 @@
 
 - Serve list of available resource types on the server at `/signalk/v1/api/resources`.
 
-- Add api endpoint to list the resource types provided by the plugoin at `/skSeerver/plugins/sk-resources-fs/paths`.
+- Add api endpoint to list the resource types provided by the plugin at `/skServer/plugins/sk-resources-fs/paths`.
 
 ### v1.2.1
 
