@@ -10,10 +10,20 @@ This Signal K node server plugin acts as a resource provider for the following r
 
 as well as allowing the user to define additional paths under `/signalk/v1/api/resources` to serve user provided resource data sets.
 
+- _example:_ `resources/fishing`   
+
 Each path is provisioned with `GET`, `PUT`, `POST` and `DELETE` operations enabled.
 
 Operation of all paths is as set out in the Signal K specification.
 
+---
+
+Additionally, the path `/signalk/v1/api/resources` will return an array of __ALL__ available resource paths on the server, not just the ones provided by the `sk-resources-fs` plugin.
+
+_Example:_
+```
+["buddies","routes","waypoints","notes","regions","tracks","fishing"]
+```
 ---
 ## Installation and Configuration:
 

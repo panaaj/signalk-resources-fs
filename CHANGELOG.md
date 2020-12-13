@@ -4,6 +4,8 @@
 
 - Add capability to define additional resource paths.
 
+- Serve list of available resource types on the server at `/signalk/v1/api/resources`.
+
 ### v1.2.1
 
 - Add validation when retrieving data from file storage.
