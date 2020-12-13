@@ -6,6 +6,8 @@
 
 - Serve list of available resource types on the server at `/signalk/v1/api/resources`.
 
+- Add api endpoint to list the resource types provided by the plugoin at `/plugins/sk-resources-fs/paths`.
+
 ### v1.2.1
 
 - Add validation when retrieving data from file storage.
