@@ -224,7 +224,7 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
         // add ./paths api route
         server.debug(`** Registering API route ./paths **`);
         router.get(
-            `/plugins/${plugin.id}/paths`, 
+            `/skServer/plugins/${plugin.id}/paths`, 
             (req:any, res:any)=> { 
                 res.status(200);
                 server.debug(enabledResTypes);
