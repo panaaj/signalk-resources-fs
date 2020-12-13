@@ -188,9 +188,10 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                 else { server.setProviderError(msg) }
             } );
 
+            server.debug(`** Registering resource paths **`);
             // ** initialise Delta PUT handlers **
             setupDeltaPUT();
-            server.debug(`** Registering resource paths **`);
+            // ** initialise HTTP routes **
             initRoutes();
         } 
         catch (e) {
@@ -220,6 +221,16 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
     // ** Signal K Resources HTTP path handlers **
     const initRoutes= ()=> {
         let router: any = server;
+        // add ./paths api route
+        server.debug(`** Registering API route ./paths **`);
+        router.get(
+            `/plugins/${plugin.id}/paths`, 
+            (req:any, res:any)=> { 
+                res.status(200);
+                server.debug(enabledResTypes);
+                res.json( Object.entries(enabledResTypes).map(i=>{ if(i[1]) { return i[0] }}).filter( i=>{ return i }) );
+            }
+        );            
         // add /signalk/v1/api/resources route
         server.debug(`** Registering /signalk/v1/api/resources path **`);
         router.get(
