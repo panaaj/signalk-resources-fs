@@ -20,6 +20,11 @@ import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';
 import { Utils} from './lib/utils';
 import uuid from 'uuid/v4';
+import * as openApi from './openApi.json'
+
+interface OpenAPIPlugin extends ServerPlugin {
+    openApiPaths: () => object
+}
 
 const CONFIG_SCHEMA= {
     properties: { 
@@ -111,18 +116,19 @@ const CONFIG_UISCHEMA= {
     }
 }
 
-module.exports = (server: ServerAPI): ServerPlugin=> {
+module.exports = (server: ServerAPI): OpenAPIPlugin=> {
     let subscriptions: Array<any>= []; // stream subscriptions   
     let timers: Array<any>= [];        // interval imers
     let utils: Utils= new Utils();
 
-    let plugin: ServerPlugin= {
+    let plugin: OpenAPIPlugin= {
         id: 'sk-resources-fs',
         name: 'Resources Provider (sk-resources-fs)',
         schema: ()=> (CONFIG_SCHEMA),
         uiSchema: ()=> (CONFIG_UISCHEMA),   
         start: (options:any, restart:any)=> { doStartup( options, restart ) },
-        stop: ()=> { doShutdown() }
+        stop: ()=> { doShutdown() },
+        openApiPaths: () => openApi.paths,
     };
 
     let fsAdapter: FileStore= new FileStore(plugin.id); 
@@ -194,12 +200,12 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
             // ** initialise HTTP routes **
             initRoutes();
         } 
-        catch (e) {
+        catch(e) {
             let msg:string= `Started with errors!`;       
             if(typeof server.setPluginError === 'function') { server.setPluginError(msg) }
             else { server.setProviderError(msg) }
             server.error("error: " + e);
-            console.error(e.stack);
+            console.error((e as any).stack);
             return e;
         }    
     }
