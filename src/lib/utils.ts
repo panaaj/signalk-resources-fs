@@ -233,7 +233,7 @@ export class Utils {
             else { params.limit= parseInt(params.limit) }
 		}
 		if(typeof params.geohash !== 'undefined') {
-            try { params.geobounds= new GeoHash().decode(params.geobounds) }
+            try { params.geobounds= new GeoHash().decode(params.geohash) }
             catch(err) {
                 let s= 'INVALID GeoHash!';
                 console.log(`*** ${s} ***`); 
@@ -244,15 +244,20 @@ export class Utils {
                 };
             }
         }
-        else if(typeof params.geobounds !== 'undefined') {
-            let b= params.geobounds.split(',')
-            .map( (i:any)=> { if(!isNaN(i)) {return parseFloat(i) } })
-            .filter( (i:any)=> { if(i) return i })
+        else if(typeof params.bbox !== 'undefined') {
+            // ** generate Geobounds object from bbox
+            let b= params.bbox.split(',')
+            .map( (i:any)=> { 
+                if(!isNaN(i)) {
+                    return parseFloat(i);
+                }
+            })
+            .filter( (i:any)=> { if(i) return i });
             if(b.length==4) {
                 params.geobounds= { sw: [b[0], b[1]], ne: [b[2], b[3] ] };
             }
             else {
-                let s=`Error: GeoBounds contains invalid coordinate value (${params.geobounds})`;
+                let s=`Error: Bounding box contains invalid coordinate value (${params.bbox})`;
                 console.log(`*** ${s} ***`);
                 params.geobounds= null;
                 return {
@@ -262,9 +267,9 @@ export class Utils {
                 };
             }
         }	
-        else if(typeof params.geobox !=='undefined' && params.position) {
-            if(isNaN(params.geobox) ) { 
-                let s= `Error: GeoBox radius specified is not a number! (${params.geobox})`;
+        else if(typeof params.radius !=='undefined' && params.position) {
+            if(isNaN(params.radius) ) { 
+                let s= `Error: Radius specified is not a number! (${params.radius})`;
                 console.log(`*** ${s} ***`);
                 return {
                     error: true, 
@@ -272,7 +277,7 @@ export class Utils {
                     source: 'resources'
                 };                
             }
-            let d= Math.sqrt( Math.pow(params.geobox,2) + Math.pow(params.geobox,2) );
+            let d= Math.sqrt( Math.pow(params.radius,2) + Math.pow(params.radius,2) );
             params.geobounds= { 
                 sw: this.destCoordinate(params.position, 225, d),
                 ne: this.destCoordinate(params.position, 45, d) 
