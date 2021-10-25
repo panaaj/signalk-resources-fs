@@ -23,7 +23,12 @@ import uuid from 'uuid/v4';
 import * as openApi from './openApi.json'
 
 interface OpenAPIPlugin extends ServerPlugin {
-    openApiPaths: () => object
+    openApiPaths: () => object,
+    ipc?: object    // ** exposed ipc APIs
+}
+
+interface IpcServerAPI extends ServerAPI {
+    plugins: any[]
 }
 
 const CONFIG_SCHEMA= {
@@ -116,7 +121,7 @@ const CONFIG_UISCHEMA= {
     }
 }
 
-module.exports = (server: ServerAPI): OpenAPIPlugin=> {
+module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
     let subscriptions: Array<any>= []; // stream subscriptions   
     let timers: Array<any>= [];        // interval imers
     let utils: Utils= new Utils();
@@ -129,6 +134,11 @@ module.exports = (server: ServerAPI): OpenAPIPlugin=> {
         start: (options:any, restart:any)=> { doStartup( options, restart ) },
         stop: ()=> { doShutdown() },
         openApiPaths: () => openApi.paths,
+        ipc: { // ** exposed ipc APIs
+            getResource: (type:string, id: string)=> { 
+                return ipcGetResource(type, id); 
+            }
+        }
     };
 
     let fsAdapter: FileStore= new FileStore(plugin.id); 
@@ -511,6 +521,16 @@ module.exports = (server: ServerAPI): OpenAPIPlugin=> {
     const getVesselPosition= ()=> {
         let p:any= server.getSelfPath('navigation.position');
         return (p && p.value) ? [ p.value.longitude, p.value.latitude ] : null;
+    }
+
+    // ******* IPC API functions **************
+    /** return resource entry
+     * resType: type of resource e.g. routes, waypoints, etc
+     * id: resource id to fetch
+     * *******************************/
+    const ipcGetResource= async (resType:string, id:string)=> {
+        let r= await db.getResources(resType, id);
+        return r;
     }
 
     return plugin;
