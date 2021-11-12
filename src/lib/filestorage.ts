@@ -32,7 +32,8 @@ export class FileStore implements IResourceStore {
             });
         }	
         // other resources
-        let enabledResTypes= JSON.parse(JSON.stringify(config.settings.API));
+        let enabledResTypes:any= {};
+        Object.assign(enabledResTypes, config.settings.API);
         if(config.settings.resourcesOther && Array.isArray(config.settings.resourcesOther) ) {
             config.settings.resourcesOther.forEach( (i:any)=>{
                 this.resources[i.name]= {path: path.join(this.savePath, `/${i.name}`)};
@@ -47,7 +48,7 @@ export class FileStore implements IResourceStore {
 
     // ** create save paths for resource types
     async createSavePaths(resTypes:any) {
-        console.log('** FS createSavePaths() **');
+        console.log('** FS initialising resource storage **');
         let result= {error: false, message: ``};
         Object.keys(this.resources).forEach( t=> {
             if(resTypes[t]) {
@@ -83,19 +84,9 @@ export class FileStore implements IResourceStore {
             if(item) { // return specified resource
                 item= item.split(':').slice(-1)[0];
                 result= JSON.parse(fs.readFileSync( path.join(this.resources[type].path, item) , 'utf8'));
-                if(this.utils.validateData({type: type, value: result })) {
-                    let stats = fs.statSync( path.join( this.resources[type].path, item) );
-                    result['timestamp'] = stats.mtime;
-                    result['$source'] = this.pkg.id;
-                }
-                else {
-                    console.log('** ERROR: INVALID RESOURCE DATA **');
-                    result= {
-                        error: true, 
-                        message: `Invalid Resource data!`,
-                        status: 400
-                    };
-                }
+                let stats = fs.statSync( path.join( this.resources[type].path, item) );
+                result['timestamp'] = stats.mtime;
+                result['$source'] = this.pkg.id;
                 return result;
             }
             else {	// return matching resources
@@ -109,14 +100,12 @@ export class FileStore implements IResourceStore {
                             let uuid= this.utils.uuidPrefix + files[f];
                             try {
                                 let res= JSON.parse(fs.readFileSync( path.join(rt[1].path, files[f]) , 'utf8'));
-                                if(this.utils.validateData({type: rt[0], value: res })) {
-                                    // ** apply param filters **
-                                    if( this.utils.passFilter(res, rt[0], params) ) {
-                                        result[uuid]= res;
-                                        let stats = fs.statSync(path.join(rt[1].path, files[f]));
-                                        result[uuid]['timestamp'] = stats.mtime;
-                                        result[uuid]['$source'] = this.pkg.id;
-                                    }
+                                // ** apply param filters **
+                                if( this.utils.passFilter(res, rt[0], params) ) {
+                                    result[uuid]= res;
+                                    let stats = fs.statSync(path.join(rt[1].path, files[f]));
+                                    result[uuid]['timestamp'] = stats.mtime;
+                                    result[uuid]['$source'] = this.pkg.id;
                                 }
                             }
                             catch(err) {
@@ -145,7 +134,6 @@ export class FileStore implements IResourceStore {
 
     // ** save / delete (r.value==null) resource file
     async setResource(r:any) {
-        //console.log('setResource()', r);
         let err= {error: true, message: ``, status: 404 }
         if( !this.utils.isUUID(r.id) ) {
             err.message= 'Invalid resource id!';
@@ -177,10 +165,6 @@ export class FileStore implements IResourceStore {
         else {  // ** add / update file
             return await (()=> {
                 return new Promise( resolve=> {
-                    if( !this.utils.validateData(r) ) { // ** invalid SignalK value **
-                        err.message= 'Invalid resource data!';
-                        resolve(err);
-                    }
                     // ** test for valid SignalK value **
                     fs.writeFile(p, JSON.stringify(r.value), (error)=> {
                         if(error) { 

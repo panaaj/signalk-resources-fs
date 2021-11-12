@@ -1,5 +1,20 @@
 # CHANGELOG: SK-RESOURCES-FS
 
+### v1.4.0
+
+__** BREAKING CHANGES **__ 
+
+Now requires Signal K server v1.4x or greater!
+
+Signal K server v1.4x now includes a provider to handle requests for the resource types defined in the Signal K specification `(routes, waypoints, notes, regions & charts)`.
+
+The path handlers for these resource types has been removed from the plugin.
+
+This plugin now acts only as a storage provider for `routes, waypoints, notes, regions` receiving resource data directly from the server.
+
+- __**update:**__ changing the selection of `routes, waypoints, notes, regions` no longer requires a server restart for the changes to take affect.
+
+---
 ### v1.3.0
 
 - Add capability to define additional resource paths.

@@ -39,7 +39,8 @@ export class DBStore implements IResourceStore {
             return new Promise( (resolve, reject)=> {
                 if(config.settings.API) {
                     // other resources
-                    let enabledResTypes= JSON.parse(JSON.stringify(config.settings.API));
+                    let enabledResTypes:any= {};
+                    Object.assign(enabledResTypes, config.settings.API);
                     if(config.settings.resourcesOther && Array.isArray(config.settings.resourcesOther) ) {
                         config.settings.resourcesOther.forEach( (i:any)=>{
                             this.resources[i.name]= {path: path.join(this.savePath, `/${i.name}`)};
@@ -80,6 +81,7 @@ export class DBStore implements IResourceStore {
 
     // ** check path exists / create it if it doesn't **
     checkPath(path:string= this.savePath) {
+        console.log('** DB cinitialising resource storage **');
         return new Promise( (resolve, reject)=> {
             if(!path) { resolve({error: true, message: `Path not supplied!`}) }
             fs.access( // check path exists
@@ -87,8 +89,7 @@ export class DBStore implements IResourceStore {
                 fs.constants.W_OK | fs.constants.R_OK, 
                 err=> {
                     if(err) {  //if not then create it
-                        console.log(`${path} does NOT exist...`);
-                        console.log(`Creating ${path} ...`);
+                        console.log(`${path} does NOT exist!... Creating...`);
                         mkdirp(path, (err)=> {
                             if(err) { resolve({error: true, message: `Unable to create ${path}!`}) }
                             else { resolve({error: false, message: `Created ${path} - OK...`}) }
@@ -147,10 +148,6 @@ export class DBStore implements IResourceStore {
                 return this.deleteRecord(this.resources[r.type], r.id)
             }
             else {  // ** add / update file
-                if( !this.utils.validateData(r) ) { // ** invalid SignalK value **
-                    err.message= 'Invalid resource data!'
-                    return err 
-                }
                 // add source / timestamp
                 r.value.timestamp= new Date().toISOString()
                 if(typeof r.value.$source === 'undefined') { r.value.$source= this.pkg.id }

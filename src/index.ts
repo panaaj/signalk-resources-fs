@@ -20,15 +20,13 @@ import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';
 import { Utils} from './lib/utils';
 import uuid from 'uuid/v4';
-import * as openApi from './openApi.json'
 
-interface OpenAPIPlugin extends ServerPlugin {
-    openApiPaths: () => object,
-    ipc?: object    // ** exposed ipc APIs
+interface ResourceProviderPlugin extends ServerPlugin {
+    resourceProvider: any    // ** ResourceProvider interface
 }
 
-interface IpcServerAPI extends ServerAPI {
-    plugins: any[]
+interface ResourceProviderServer extends ServerAPI {
+    resourcesApi: any    // ** access to serer resources API
 }
 
 const CONFIG_SCHEMA= {
@@ -36,7 +34,7 @@ const CONFIG_SCHEMA= {
         API: {
             type: "object",
             title: "Resources (standard)",
-            description: 'ENABLE / DISABLE `/signalk/v1/api/resources` path handling.',
+            description: 'ENABLE / DISABLE storage provider for the following resource types.',
             properties: {
                 routes: {
                     type: "boolean", 
@@ -59,7 +57,7 @@ const CONFIG_SCHEMA= {
         resourcesOther: {
             type: "array",
             title: "Resources (other)",
-            description: "Define paths for additional resource types.",
+            description: "Define paths for additional resource types. (Server restart required.)",
             items: {
               type: "object",
               required: [ 'name' ],
@@ -91,23 +89,23 @@ const CONFIG_UISCHEMA= {
     API: {
         routes: {
             "ui:widget": "checkbox",
-            "ui:title": "NOTE: Changing these selections will require a server re-start before they take effect!",
-            "ui:help": "/signalk/v1/api/resources/routes"
+            "ui:title": " ",
+            "ui:help": "Signal K Route resources"
         },
         waypoints: {
             "ui:widget": "checkbox",
             "ui:title": " ",
-            "ui:help": "/signalk/v1/api/resources/waypoints"
+            "ui:help": "Signal K Waypoint resources"
         },
         notes: {
             "ui:widget": "checkbox",
             "ui:title": " ",
-            "ui:help": "/signalk/v1/api/resources/notes"
+            "ui:help": "Signal K Note resources"
         },
         regions: {
             "ui:widget": "checkbox",
             "ui:title": " ",
-            "ui:help": "/signalk/v1/api/resources/regions"
+            "ui:help": "Signal K Region resources"
         }                          
     },
     SOURCE: {
@@ -121,22 +119,32 @@ const CONFIG_UISCHEMA= {
     }
 }
 
-module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
+module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
     let subscriptions: Array<any>= []; // stream subscriptions   
-    let timers: Array<any>= [];        // interval imers
     let utils: Utils= new Utils();
 
-    let plugin: OpenAPIPlugin= {
+    let plugin: ResourceProviderPlugin= {
         id: 'sk-resources-fs',
         name: 'Resources Provider (sk-resources-fs)',
         schema: ()=> (CONFIG_SCHEMA),
         uiSchema: ()=> (CONFIG_UISCHEMA),   
         start: (options:any, restart:any)=> { doStartup( options, restart ) },
         stop: ()=> { doShutdown() },
-        openApiPaths: () => openApi.paths,
-        ipc: { // ** exposed ipc APIs
-            getResource: (type:string, id: string)=> { 
-                return ipcGetResource(type, id); 
+        resourceProvider: {
+            types: [],
+            methods: {
+                listResources: (type:string, params:object):any=> { 
+                    return apiGetResource(type, '', params); 
+                },
+                getResource: (type:string, id:string)=> {
+                    return apiGetResource(type, id); 
+                } ,
+                setResource: (type:string, id:string, value:any)=> { 
+                    return apiSetResource(type, id, value); 
+                },
+                deleteResource: (type:string, id:string)=> {
+                    return apiSetResource(type, id, null); 
+                }
             }
         }
     };
@@ -154,9 +162,10 @@ module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
         }
     };
 
-    let enabledResTypes: any;
+    let enabledResTypes:any= {};
+    let apiProviderFor: Array<string>= []
 
-    const doStartup= (options:any, restart:any)=> { 
+    const doStartup= (options:any, restart:any)=> {
         try {
             server.debug(`${plugin.name} starting.......`);
 
@@ -173,11 +182,25 @@ module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
                         db= fsAdapter; 
                 }
             }
-            // compile enabled resource types list
-            enabledResTypes= JSON.parse(JSON.stringify(config.API));
+            // compile list of enabled resource types
+            apiProviderFor= [];
+            Object.assign(enabledResTypes,config.API);
+            Object.entries(config.API).forEach( i=> {
+                if(i[1]) {
+                    apiProviderFor.push(i[0]);
+                }
+                delete enabledResTypes[i[0]];
+            })
+            plugin.resourceProvider.types= apiProviderFor;
+
             if(config.resourcesOther && Array.isArray(config.resourcesOther) ) {
                 config.resourcesOther.forEach( (i:any)=>{ enabledResTypes[i.name]= true });
-            }            
+            }
+            server.debug('*** Enabled standard resources ***');
+            server.debug(JSON.stringify(apiProviderFor));
+            server.debug('*** Enabled additional resources ***');
+            server.debug(JSON.stringify(enabledResTypes));
+
 			// ** initialise resource storage
             db.init({settings: config, path: server.config.configPath})
             .then( (res:any)=> {
@@ -188,9 +211,9 @@ module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
                     else { server.setProviderError(msg) }		
                 }
 
-                let ae= 'Handling: ';
+                let ae= `Providing resources: ${apiProviderFor.toString()}`;
                 for( let i in enabledResTypes) {
-                    ae+= (enabledResTypes[i]) ? `${i},` : '';
+                    ae+= (enabledResTypes[i]) ? `,${i}` : '';
                 }
                 server.debug(`** ${plugin.name} started... ${(!res.error) ? 'OK' : 'with errors!'}`);    
                 let msg:string= `Started. ${ae}`;       
@@ -204,11 +227,9 @@ module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
                 else { server.setProviderError(msg) }
             } );
 
-            server.debug(`** Registering resource paths **`);
-            // ** initialise Delta PUT handlers **
-            setupDeltaPUT();
-            // ** initialise HTTP routes **
-            initRoutes();
+            setTimeout( ()=> { server.resourcesApi.checkForProviders(true) }, 1000);
+            // ** non-std resource path handlers **
+            initNonStandardHttpPaths();
         } 
         catch(e) {
             let msg:string= `Started with errors!`;       
@@ -225,55 +246,75 @@ module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
         server.debug('** Un-registering Update Handler(s) **');
         subscriptions.forEach( b=> b() );
         subscriptions= [];
-        server.debug('** Stopping Timer(s) **');
-        timers.forEach( t=> clearInterval(t) );
-        timers= [];    
         if(db) { db.close().then( ()=> server.debug(`** Store closed **`) ) }
         let msg= 'Stopped.';
         if(typeof server.setPluginStatus === 'function') { server.setPluginStatus(msg) }
         else { server.setProviderStatus(msg) }	
     }
 
-    // ** Signal K Resources HTTP path handlers **
-    const initRoutes= ()=> {
-        let router: any = server;
-        // add ./paths api route
-        server.debug(`** Registering API route ./paths **`);
-        router.get(
-            `/skServer/plugins/${plugin.id}/paths`, 
-            (req:any, res:any)=> { 
-                res.status(200);
-                server.debug(enabledResTypes);
-                res.json( Object.entries(enabledResTypes).map(i=>{ if(i[1]) { return i[0] }}).filter( i=>{ return i }) );
+    // ******* Signal K server Resource Provider interface functions **************
+    
+    /** return resource entry
+     * resType: type of resource e.g. routes, waypoints, etc
+     * id: resource id to fetch
+     * *******************************/
+     const apiGetResource= async (resType:string, id:string, params?:any):Promise<any>=> {
+         // append vessel position to params
+        params= params ?? {};
+        params.position= getVesselPosition();
+        server.debug(`*** apiGetResource:  ${resType}, ${id}, ${JSON.stringify(params)}`)
+        if(!id) { // retrieve resource list          
+            let r= await db.getResources(resType, null, params);      
+            if(typeof r.error==='undefined') { return r }
+            else { null }   
+        }
+        else { // retrieve resource entry
+            let r= await db.getResources(resType, id);
+            if(typeof r.error==='undefined') {
+                delete r.timestamp;
+                delete r.$source;
+                return r;
             }
-        );            
-        // add /signalk/v1/api/resources route
-        server.debug(`** Registering /signalk/v1/api/resources path **`);
-        router.get(
-            `/signalk/v1/api/resources`, 
-            (req:any, res:any)=> {
-                let app: any = server;
-                let resRoutes:Array<string>= [];
-                app._router.stack.forEach((i:any)=> {
-                    if(i.route && i.route.path && typeof i.route.path==='string') {
-                        if(i.route.path.indexOf('/signalk/v1/api/resources')!=-1) {
-                            let r= i.route.path.split('/');
-                            if( r.length>5 && !resRoutes.includes(r[5]) ) { resRoutes.push(r[5]) }
-                        }
-                    }
-                });
-                res.json(resRoutes);
-        });    
-        // add routes for each resource type
+            else { null } 
+            /*if(p.attribute) { // extract resource attribute value
+                let a= eval(`r.${p.attribute}`);
+                if(a) { return a }
+                else { return err }
+            }
+            else { return r }*/
+        }
+    }
+
+    /** add / update / delete resource entry
+     * resType: type of resource e.g. routes, waypoints, etc
+     * id: resource id
+     * value: resource data
+     * *******************************/
+    const apiSetResource= async (resType:string, id:string, value:any):Promise<any>=> {
+        server.debug(`*** apiSetResource:  ${resType}, ${id}, ${value}`);
+        let dbop= await db.setResource({
+            type: resType,
+            id: id,
+            value: value
+        });        
+        if(typeof dbop.error==='undefined') { // OK
+            return true
+        }
+        else {  // error
+            return false;             
+        }
+    }
+
+
+    // ******* Non-standard Resource processing **************
+
+    // ** Intialise HTTP path handlers (non-standard paths) **
+    const initNonStandardHttpPaths= ()=> {
+        let router: any = server;      
+        // add routes for each non-standard Signal K resource type
         Object.entries(enabledResTypes).forEach( ci=>{
-            server.debug(`** Registering resource path **`);
             if(ci[1]) {
-                server.debug(`** Registering ${ci[0]} API paths **`);
-                router.get(
-                    `/signalk/v1/api/resources/${ci[0]}/meta`, 
-                    (req:any, res:any)=> {
-                    res.json( {description: `Collection of ${ci[0]}, each named with a UUID`} );
-                });          
+                server.debug(`** Registering /resources/${ci[0]} API paths **`);       
                 router.get(
                     `/signalk/v1/api/resources/${ci[0]}`, 
                     async (req:any, res:any)=> {
@@ -342,32 +383,6 @@ module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
             }
         })    
     }
-
-    // *** SETUP ROUTE HANDLING **************************************
-
-    // ** register DELTA PUT handlers **
-    const setupDeltaPUT= ()=> {
-        if(server.registerPutHandler) {
-            Object.entries(enabledResTypes).forEach( ci=>{
-                if(ci[1]) { 
-                    server.debug(`** Registering ${ci[0]}  DELTA Action Handler **`);
-                    server.debug(`** resources.${ci[0]} **`);
-                    server.registerPutHandler(
-                        'vessels.self',
-                        `resources.${ci[0]}`,
-                        (context, path, value, cb)=> { 
-                            server.debug('DELTA PUT ACTION');
-                            actionResourceRequest(context, path, value)
-                            .then( result=>{ cb(result) } );
-                            return { state: 'PENDING', statusCode: 202, message: 'PENDING'};
-                        }
-                    ); 
-                }
-            });                           
-        }         
-    }
-
-    // *** RESOURCE PROCESSING **************************************
 
     /** compile http api get response 
      * req: http request object
@@ -521,16 +536,6 @@ module.exports = (server: IpcServerAPI): OpenAPIPlugin=> {
     const getVesselPosition= ()=> {
         let p:any= server.getSelfPath('navigation.position');
         return (p && p.value) ? [ p.value.longitude, p.value.latitude ] : null;
-    }
-
-    // ******* IPC API functions **************
-    /** return resource entry
-     * resType: type of resource e.g. routes, waypoints, etc
-     * id: resource id to fetch
-     * *******************************/
-    const ipcGetResource= async (resType:string, id:string)=> {
-        let r= await db.getResources(resType, id);
-        return r;
     }
 
     return plugin;
