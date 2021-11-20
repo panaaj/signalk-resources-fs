@@ -227,7 +227,8 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
                 else { server.setProviderError(msg) }
             } );
 
-            setTimeout( ()=> { server.resourcesApi.checkForProviders(true) }, 1000);
+            // ** register resource provider **
+            server.resourcesApi.register(plugin.id, plugin.resourceProvider);
             // ** non-std resource path handlers **
             initNonStandardHttpPaths();
         } 
@@ -243,6 +244,8 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
 
     const doShutdown= ()=> { 
         server.debug(`${plugin.name} stopping.......`);
+        server.debug('** Un-registering Resource Provider(s) **');
+        server.resourcesApi.unRegister(plugin.id, plugin.resourceProvider.types);
         server.debug('** Un-registering Update Handler(s) **');
         subscriptions.forEach( b=> b() );
         subscriptions= [];
@@ -271,8 +274,6 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         else { // retrieve resource entry
             let r= await db.getResources(resType, id);
             if(typeof r.error==='undefined') {
-                delete r.timestamp;
-                delete r.$source;
                 return r;
             }
             else { null } 
