@@ -135,7 +135,7 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         name: 'Resources Provider (sk-resources-fs)',
         schema: ()=> (CONFIG_SCHEMA),
         uiSchema: ()=> (CONFIG_UISCHEMA),   
-        start: (options:any, restart:any)=> { doStartup( options, restart ) },
+        start: (options:any, restart:any)=> { doStartup( options ) },
         stop: ()=> { doShutdown() },
         resourceProvider: {
             types: [],
@@ -172,7 +172,7 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
     let apiProviderFor: Array<string>= [];
     let customTypes: Array<string>= [];
 
-    const doStartup= (options:any, restart:any) => {
+    const doStartup= (options:any) => {
         try {
             server.debug(`${plugin.name} starting.......`);
 
@@ -196,13 +196,14 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
                     apiProviderFor.push(i[0]);
                 }
             })
-            plugin.resourceProvider.types= apiProviderFor;
 
             if(config.resourcesOther && Array.isArray(config.resourcesOther)) {
                 customTypes= config.resourcesOther.map( (i:any) => {
                     return i.name;
                 });
             }
+            plugin.resourceProvider.types= apiProviderFor.concat(customTypes);
+
             server.debug('*** Enabled standard resources ***');
             server.debug(JSON.stringify(apiProviderFor));
             server.debug('*** Enabled additional resources ***');
@@ -218,11 +219,8 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
                     else { server.setProviderError(msg) }		
                 }
 
-                let ae= `Providing resources: ${apiProviderFor.toString()}`;
-                ae+= customTypes.toString();
-            
                 server.debug(`** ${plugin.name} started... ${(!res.error) ? 'OK' : 'with errors!'}`);    
-                let msg:string= `Started. ${ae}`;       
+                let msg:string= `Resource Provider (active): ${plugin.resourceProvider.types.toString()}`;       
                 if(typeof server.setPluginStatus === 'function') { server.setPluginStatus(msg) }
                 else { server.setProviderStatus(msg) }                
             })
@@ -235,8 +233,6 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
 
             // ** register resource provider **
             server.resourcesApi.register(plugin.id, plugin.resourceProvider);
-            // ** non-std resource path handlers **
-            initCustomResourcePaths();
         } 
         catch(e) {
             let msg:string= `Started with errors!`;       
@@ -261,12 +257,13 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         else { server.setProviderStatus(msg) }	
     }
 
+    const getVesselPosition= ()=> {
+        let p:any= server.getSelfPath('navigation.position');
+        return (p && p.value) ? [ p.value.longitude, p.value.latitude ] : null;
+    }
+
     // ******* Signal K server Resource Provider interface functions **************
     
-    /** return resource entry
-     * resType: type of resource e.g. routes, waypoints, etc
-     * id: resource id to fetch
-     * *******************************/
      const apiGetResource= async (resType:string, id:string, params?:any):Promise<any>=> {
          // append vessel position to params
         params= params ?? {};
@@ -292,11 +289,6 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         }
     }
 
-    /** add / update / delete resource entry
-     * resType: type of resource e.g. routes, waypoints, etc
-     * id: resource id
-     * value: resource data
-     * *******************************/
     const apiSetResource= async (resType:string, id:string, value:any):Promise<any>=> {
         server.debug(`*** apiSetResource:  ${resType}, ${id}, ${value}`);
         let dbop= await db.setResource({
@@ -310,225 +302,6 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         else {  // error
             return false;             
         }
-    }
-
-
-    // ******* Non-standard Resource processing **************
-
-    // ** Intialise HTTP path handlers (non-standard paths) **
-    const initCustomResourcePaths= ()=> {
-
-        (server as any).get(
-            `/signalk/v1/api/resources/:customType`, 
-            async (req:Request, res:Response, next:NextFunction)=> {
-                server.debug(`** GET /signalk/v1/api/resources/:customType`);
-
-                if(!customTypes.includes(req.params.customType)) {
-                    server.debug(`** Unhandled custom path (${req.params.customType})...next()`);
-                    next();
-                    return;
-                }
-
-                getCustomResource(req, true)
-                .then( r=> {
-                    if(r.statusCode>=400) { 
-                        res.status(r.statusCode).send(r.message);
-                    }
-                    else { res.json(r) }                    
-                })
-                .catch (err=> { res.status(500) } )
-            }
-        );
-
-        (server as any).get(
-            `/signalk/v1/api/resources/:customType/:id`, 
-            async (req:Request, res:Response, next:NextFunction)=> {
-                server.debug(`** GET /signalk/v1/api/resources/:customType/:id`);
-
-                if(!customTypes.includes(req.params.customType)) {
-                    server.debug(`** Unhandled custom path ${req.params.customType}...next()`);
-                    next();
-                    return;
-                }
-
-                getCustomResource(req)
-                .then( r=> {
-                    if(r.statusCode>=400) { 
-                        res.status(r.statusCode).send(r.message);
-                    }
-                    else { res.json(r) }                    
-                })
-                .catch (err=> { res.status(500) } )
-            }
-        );
-
-        (server as any).delete(
-            `/signalk/v1/api/resources/:customType/:id`, 
-            async (req:Request, res:Response, next:NextFunction)=> {
-                server.debug(`** DELEGTE /signalk/v1/api/resources/:customType/:id`);
-
-                if(!customTypes.includes(req.params.customType)) {
-                    server.debug(`** Unhandled custom path ${req.params.customType}...next()`);
-                    next();
-                    return;
-                }
-                let resData:StoreRequestParams = {
-                    id: req.params.id,
-                    type: req.params.customType,
-                    value: null
-                };
-
-                actionResourceRequest('', resData)
-                .then(
-                    (r:any) => {
-                        if(r.statusCode>=400) { 
-                            res.status(r.statusCode).send(r.message);
-                        }
-                        else { res.json(r) }                    
-                    }
-                ).catch( err => { 
-                    res.status(500);
-                }); 
-            }
-        );
-
-        (server as any).put(
-            `/signalk/v1/api/resources/:customType/:id`, 
-            async (req:Request, res:Response, next:NextFunction)=> {
-                server.debug(`** PUT /signalk/v1/api/resources/:customType/:id`);
-
-                if(!customTypes.includes(req.params.customType)) {
-                    server.debug(`** Unhandled custom path ${req.params.customType}...next()`);
-                    next();
-                    return;
-                }
-                let resData:StoreRequestParams = {
-                    id: req.params.id,
-                    type: req.params.customType,
-                    value: req.params.body
-                };
-
-                actionResourceRequest('', resData)
-                .then(
-                    (r:any) => {
-                        if(r.statusCode>=400) { 
-                            res.status(r.statusCode).send(r.message);
-                        }
-                        else { res.json(r) }                    
-                    }
-                ).catch( err => { 
-                    res.status(500);
-                }); 
-            }
-        );
-
-        (server as any).post(
-            `/signalk/v1/api/resources/:customType`, 
-            async (req:Request, res:Response, next:NextFunction)=> {
-                server.debug(`** POST /signalk/v1/api/resources/:customType`);
-
-                if(!customTypes.includes(req.params.customType)) {
-                    server.debug(`** Unhandled custom path ${req.params.customType}...next()`);
-                    next();
-                    return;
-                }
-                let resData:StoreRequestParams = {
-                    id: utils.uuidPrefix + uuid(),
-                    type: req.params.customType,
-                    value: req.params.body
-                };
-
-                actionResourceRequest('', resData)
-                .then(
-                    (r:any) => {
-                        if(r.statusCode>=400) { 
-                            res.status(r.statusCode).send(r.message);
-                        }
-                        else { res.json(r) }                    
-                    }
-                ).catch( err => { 
-                    res.status(500);
-                }); 
-            }
-        );
-    }
-
-    /** retrieve custom resource entries 
-     * req: http request object
-     * list: true: resource list, false: single entry
-     * *******************************/
-    const getCustomResource= async (req:Request, list:boolean=false) => {
-        let err= { 
-            state: 'COMPLETED', 
-            message: `Cannot GET ${req.path}`, 
-            statusCode: 404
-        };
-
-        let query:any= Object.assign({}, req.query);
-        query['position']= getVesselPosition();
- 
-        if(list) { // retrieve resource list
-            let r= await db.getResources(req.params.customType, null, query);      
-            if(typeof r.error==='undefined') { return r }
-            else { return err }             
-        }
-        else { // retrieve resource entry
-            let r= await db.getResources(req.params.customType, req.params.id);
-            if(typeof r.error==='undefined') { return r }
-            else { return err } 
-        }
-    }
-
-    /** handle Resource POST, PUT, DELETE requests 
-     * http: false: WS formatted status, true: http formatted status **/
-    const actionResourceRequest= async (context:string, dbReq:StoreRequestParams):Promise<ActionResult> => {
-        server.debug(`Data= ${JSON.stringify(dbReq)}, context= ${context}`) 
-        let result:ActionResult;
-
-        // ** test for valid resource identifier
-        if( !utils.isUUID(dbReq.id) ) {
-            return { 
-                state: 'COMPLETED', 
-                statusCode: 406,
-                message: `Invalid resource id!` 
-            };
-        }
-  
-        let dbop= await db.setResource(dbReq);   
-
-        if(typeof dbop.error==='undefined') { // OK
-            sendDelta(dbReq);
-            result= { state: 'COMPLETED', message:'COMPLETED', statusCode: 200 };
-        }
-        else {  // error
-            result= { 
-                state: 'COMPLETED', 
-                statusCode: 502,
-                message: `Error updating resource!` 
-            };               
-        }              
-        return result;
-    } 
-     
-    // ** send delta message for resource
-    const sendDelta= (r:StoreRequestParams)=> {
-        let key= r.id;
-        let p= `resources.${r.type}.${key}`;
-        let val:Array<DeltaMessage>= [
-            {
-                path: p, 
-                value: r.value
-            }
-        ];
-        server.debug(`****** Send Delta: ******`);
-        let msg: DeltaUpdate= {updates: [ {values: val} ] }
-        server.debug(JSON.stringify(msg));
-        server.handleMessage(plugin.id, msg);
-    }
-
-    const getVesselPosition= ()=> {
-        let p:any= server.getSelfPath('navigation.position');
-        return (p && p.value) ? [ p.value.longitude, p.value.latitude ] : null;
     }
 
     return plugin;
