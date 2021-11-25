@@ -16,19 +16,35 @@
 import { ServerPlugin, ServerAPI, ActionResult, 
         DeltaUpdate, DeltaMessage } from '@panaaj/sk-types';
 
-//import { ResourceProvider } from '@signalk/server-api';
+//import { ResourceTypes, ResourceProvider } from '@signalk/server-api';
 
-import { Request, Response, NextFunction }  from 'express';
-import uuid from 'uuid/v4';
+type SignalKResourceType= 'routes' | 'waypoints' |'notes' |'regions' |'charts'
+export type ResourceTypes= SignalKResourceType[] | string[]
+
+export interface ResourceProviderMethods {
+  pluginId?: string
+  listResources: (type: string, query: { [key: string]: any }) => Promise<any>
+  getResource: (type: string, id: string) => Promise<any>
+  setResource: (
+    type: string,
+    id: string,
+    value: { [key: string]: any }
+  ) => Promise<any>
+  deleteResource: (type: string, id: string) => Promise<any>
+}
+
+export interface ResourceProvider {
+  types: ResourceTypes
+  methods: ResourceProviderMethods
+}
 
 import { DBStore } from './lib/dbfacade';
 import { FileStore } from './lib/filestorage';
 import { Utils} from './lib/utils';
 import { StoreRequestParams } from './types';
 
-
 interface ResourceProviderPlugin extends ServerPlugin {
-    resourceProvider: any // ResourceProvider
+    resourceProvider: ResourceProvider
 }
 
 interface ResourceProviderServer extends ServerAPI {
@@ -169,8 +185,8 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         }
     };
 
-    let apiProviderFor: Array<string>= [];
-    let customTypes: Array<string>= [];
+    let apiProviderFor: string[];
+    let customTypes: string[];
 
     const doStartup= (options:any) => {
         try {
@@ -191,12 +207,12 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
             }
             // compile list of enabled resource types
             apiProviderFor= [];
-            Object.entries(config.API).forEach( i=> {
-                if(i[1]) {
-                    apiProviderFor.push(i[0]);
+            for(let i in config.API) {
+                if(config.API[i]) {
+                    apiProviderFor.push(i as string);
                 }
-            })
-
+            }
+            customTypes= [];
             if(config.resourcesOther && Array.isArray(config.resourcesOther)) {
                 customTypes= config.resourcesOther.map( (i:any) => {
                     return i.name;
@@ -291,11 +307,12 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
 
     const apiSetResource= async (resType:string, id:string, value:any):Promise<any>=> {
         server.debug(`*** apiSetResource:  ${resType}, ${id}, ${value}`);
-        let dbop= await db.setResource({
+        let r: StoreRequestParams = {
             type: resType,
             id: id,
             value: value
-        });        
+        }
+        let dbop= await db.setResource(r);     
         if(typeof dbop.error==='undefined') { // OK
             return true
         }
