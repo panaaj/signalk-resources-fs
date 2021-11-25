@@ -6,11 +6,9 @@ __** BREAKING CHANGES **__
 
 Now requires Signal K server v1.4x or greater!
 
-Signal K server v1.4x now includes a provider to handle requests for the resource types defined in the Signal K specification `(routes, waypoints, notes, regions & charts)`.
+Signal K server v1.4x now includes a `ResourceProvider` API for handling requests for the resource types defined in the Signal K specification `(routes, waypoints, notes, regions & charts)`.
 
-The path handlers for these resource types has been removed from the plugin.
-
-This plugin now acts only as a storage provider for `routes, waypoints, notes, regions` receiving resource data directly from the server.
+This plugin has been updated to function as a `ResourceProvider` for `routes, waypoints, notes, regions`.
 
 - __**update:**__ changing the selection of `routes, waypoints, notes, regions` no longer requires a server restart for the changes to take affect.
 

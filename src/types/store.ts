@@ -7,5 +7,11 @@ export interface IResourceStore {
     init: (basePath:string) => Promise<any>;
     close?: ()=> void;
     getResources: (type:string, item:any, params:any) => Promise<any>;
-    setResource?: (r:any) => Promise<any>;
+    setResource?: (r:StoreRequestParams) => Promise<any>;
+}
+
+export interface StoreRequestParams {
+    id: string;
+    type: string;
+    value: any;
 }

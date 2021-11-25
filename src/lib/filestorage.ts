@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import mkdirp from 'mkdirp';
-import { IResourceStore } from '../types';
+import { IResourceStore, StoreRequestParams } from '../types';
 import { Utils} from './utils';
 
 // ** File Resource Store Class
@@ -133,7 +133,7 @@ export class FileStore implements IResourceStore {
     }    
 
     // ** save / delete (r.value==null) resource file
-    async setResource(r:any) {
+    async setResource(r:StoreRequestParams) {
         let err= {error: true, message: ``, status: 404 }
         if( !this.utils.isUUID(r.id) ) {
             err.message= 'Invalid resource id!';

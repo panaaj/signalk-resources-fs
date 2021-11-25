@@ -1,13 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import mkdirp from 'mkdirp';
-import { IResourceStore } from '../types';
+import { IResourceStore, StoreRequestParams } from '../types';
 import { Utils } from './utils';
 
 import PouchDB from 'pouchdb';
 PouchDB.plugin(require('pouchdb-find'));
 
-// ** File Resource Store Class
+// ** FileDB Resource Store Class
 export class DBStore implements IResourceStore {
 
     utils: Utils;
@@ -130,13 +130,8 @@ export class DBStore implements IResourceStore {
     }
 	
     /** save / delete (r.value==null) resource file 
-        r: {
-            type: 'routes' | 'waypoints' | 'notes' | 'regions',
-            id: string,
-            value: any (null=delete)
-        }
      ***********************************************/
-    async setResource(r:any) {
+    async setResource(r:StoreRequestParams) {
         let err= {error: true, message: ``, status: 404 }
         if( !this.utils.isUUID(r.id) ) {
             err.message= 'Invalid resource id!'
