@@ -1,29 +1,22 @@
-# Signal K Resources Provider Plugin:
+# Signal K Resources Plugin:
 
-__Resources API__ provider plugin for __Signal K Server__.
+__Resource Provider__ provider plugin for __Signal K Server__.
 
-This Signal K node server plugin acts as a resource provider for the following resource types detailed in the specification:
+This Signal K node server plugin is a resource provider, facilitating the storage and retrieval of the following resource types defined by the Signal K specification:
 - `resources/routes`
 - `resources/waypoints`
 - `resources/notes`
 - `resources/regions`   
 
-as well as allowing the user to define additional paths under `/signalk/v1/api/resources` to serve user provided resource data sets.
+as well as custom resource types provisioned as additional paths under `/signalk/v1/api/resources`.
 
-- _example:_ `resources/fishing`   
+- _example:_ `resources/fishingZones`   
 
 Each path is provisioned with `GET`, `PUT`, `POST` and `DELETE` operations enabled.
 
 Operation of all paths is as set out in the Signal K specification.
 
----
 
-Additionally, the path `/signalk/v1/api/resources` will return an array of __ALL__ available resource paths on the server, not just the ones provided by the `sk-resources-fs` plugin.
-
-_Example:_
-```
-["buddies","routes","waypoints","notes","regions","tracks","fishing"]
-```
 ---
 ## Installation and Configuration:
 
@@ -43,7 +36,6 @@ _Example:_
 
 1. Click __Submit__ 
 
-1. __RESTART__ the server to allow the selected paths to be serviced.
 ---
 
 ## Data Store Options:
@@ -60,8 +52,6 @@ Currently the following data store types are provided:
 
     Notes will be stored in `<config_path>/notes`
 
-    __Note: Choose this option if you are moving from `GPXLoad`.__ _Setting the path to the location used by `GPXLoad` will make all your existing resources available._
-
 2. `Database`: Choosing this option store will use a database provider as the resource store. If the value entered in `path` is a:
     - `file system path on the device`: a database store will be cretaed on the file system in the specified path.
 
@@ -70,8 +60,8 @@ Currently the following data store types are provided:
 ---
 ## Use and Operation:
 
-Once configured the plugin will handle all of the following requests for the enabled paths:
-- HTTP GET, POST, PUT and DELETE requests
-- Delta GET and PUT requests
+Once configured the plugin register as the resource provider for the resource types enabled in the server's `Plugin Confg` screen.
 
-_Please refer to the [Signal K specification](https://signalk.org/specification) for details about working with resources._
+The SignalK server will pass all requests _(HTTP GET, POST, PUT and DELETE)_for theses paths to the plugin.
+
+_Please refer to the [Signal K specification](https://signalk.org/specification) and  [Signal K Server documentation](https://signalk.org/signalk-server/RESOURCE_PROVIDER_PLUGINS.md) for details about working with resources._
