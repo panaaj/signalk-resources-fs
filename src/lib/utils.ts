@@ -62,15 +62,31 @@ export class Utils {
     
     /** Apply filters to Resource entry
      * returns: true if entry should be included in results **/
-    passFilter(res:any, type:string, params:any) {
+     passFilter(res:any, type:string, params:any) {
         let ok:boolean= true;
         if(params.region) {	// ** check is attached to region
-            console.log(`check region: ${params.region}`);
+            //console.log(`check region: ${params.region}`);
             if(typeof res.region==='undefined') { ok= ok && false }
-            else { ok= ok && (res.region==params.region) }
+            else {
+                // deconstruct resource region value
+                let ha= res.region.split('/')
+                let hType:string = ha.length === 1 ? 
+                    'regions' :
+                    ha.length > 2  ? ha[ha.length-2] : 'regions'
+                let hId= ha.length === 1 ? ha[0] : ha[ha.length-1]
+
+                // deconstruct param.region value
+                let pa= params.region.split('/')
+                let pType:string = pa.length === 1 ? 
+                    'regions' :
+                    pa.length > 2  ? pa[pa.length-2] : 'regions'
+                let pId= pa.length === 1 ? pa[0] : pa[pa.length-1]
+
+                ok= ok && (hType === pType && hId === pId) 
+            }
         }  
         if(params.group) {	// ** check is attached to group
-            console.log(`check group: ${params.group}`);
+            //console.log(`check group: ${params.group}`);
             if(typeof res.group==='undefined') { ok= ok && false }
             else { ok= ok && (res.group==params.group) }
         } 

@@ -180,6 +180,7 @@ export class FileStore implements IResourceStore {
                     if( !this.utils.validateData(r) ) { // ** invalid SignalK value **
                         err.message= 'Invalid resource data!';
                         resolve(err);
+                        return;
                     }
                     // ** test for valid SignalK value **
                     fs.writeFile(p, JSON.stringify(r.value), (error)=> {

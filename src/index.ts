@@ -482,7 +482,6 @@ module.exports = (server: ServerAPI): ServerPlugin=> {
                 message: `Error updating resource!` 
             };               
         }              
-
         return result;
     } 
      

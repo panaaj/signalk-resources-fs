@@ -1,5 +1,9 @@
 # CHANGELOG: SK-RESOURCES-FS
 
+### v1.3.1
+
+- Fixed Note `region` value handling.
+
 ### v1.3.0
 
 - Add capability to define additional resource paths.
