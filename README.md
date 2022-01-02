@@ -2,6 +2,8 @@
 
 __Resource Provider__ provider plugin for __Signal K Server__.
 
+___Note: Version 1.4.0 and greater of this plugin should ONLY be installed on Signal K server version 1.41.0 or later as it requires the `Resources API` to be implemented!___
+
 This Signal K node server plugin is a resource provider, facilitating the storage and retrieval of the following resource types defined by the Signal K specification:
 - `resources/routes`
 - `resources/waypoints`
