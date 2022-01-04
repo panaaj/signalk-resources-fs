@@ -288,20 +288,23 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         if(!id) { // retrieve resource list          
             let r= await db.getResources(resType, null, params);
             if(typeof r.error==='undefined') { return r }
-            else { null }   
+            else { throw(r.error) }   
         }
         else { // retrieve resource entry
             let r= await db.getResources(resType, id);
             if(typeof r.error==='undefined') {
                 return r;
+                /*if(p.attribute) { // extract resource attribute value
+                    let a= eval(`r.${p.attribute}`);
+                    if(a) { return a }
+                    else { return err }
+                }
+                else { return r }*/
             }
-            else { null } 
-            /*if(p.attribute) { // extract resource attribute value
-                let a= eval(`r.${p.attribute}`);
-                if(a) { return a }
-                else { return err }
-            }
-            else { return r }*/
+            else { 
+                throw(r.error)
+            } 
+
         }
     }
 
@@ -312,13 +315,19 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
             id: id,
             value: value
         }
-        let dbop= await db.setResource(r);     
-        if(typeof dbop.error==='undefined') { // OK
-            return true
+        try {
+            let dbop= await db.setResource(r);     
+            if(typeof dbop.error==='undefined') { // OK
+                return dbop;
+            }
+            else {  // error
+                throw(dbop.error);        
+            }
         }
-        else {  // error
-            return false;             
+        catch(error) {
+            throw(error);
         }
+
     }
 
     return plugin;
