@@ -286,7 +286,7 @@ module.exports = (server: ResourceProviderServer): ResourceProviderPlugin=> {
         params.position= getVesselPosition();
         server.debug(`*** apiGetResource:  ${resType}, ${id}, ${JSON.stringify(params)}`)
         if(!id) { // retrieve resource list          
-            let r= await db.getResources(resType, null, params);      
+            let r= await db.getResources(resType, null, params);
             if(typeof r.error==='undefined') { return r }
             else { null }   
         }

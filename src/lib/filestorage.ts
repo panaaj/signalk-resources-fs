@@ -93,37 +93,34 @@ export class FileStore implements IResourceStore {
                 return result;
             }
             else {	// return matching resources
-                Object.entries(this.resources).forEach( async (rt:any)=> {         
-                    if(!type || type==rt[0]) {
-                        let files= await readdir(rt[1].path);
-                        // check resource count 
-                        let fcount= (params.limit && files.length > params.limit) ? params.limit : files.length;
-                        for( let f in files) {
-                            if(f>=fcount) { break }
-                            let uuid= this.utils.uuidPrefix + files[f];
-                            try {
-                                let res= JSON.parse(
-                                    await readFile( path.join(rt[1].path, files[f]) , 'utf8')
-                                );
-                                // ** apply param filters **
-                                if( this.utils.passFilter(res, rt[0], params) ) {
-                                    result[uuid]= res;
-                                    let stats:any = stat(path.join(rt[1].path, files[f]));
-                                    result[uuid]['timestamp'] = stats.mtime;
-                                    result[uuid]['$source'] = this.pkg.id;
-                                }
-                            }
-                            catch(err) {
-                                console.log(err);
-                                return {
-                                    message: `Invalid file contents: ${files[f]}`,
-                                    status: 400,
-                                    error: true
-                                };	
-                            }
-                        }                
+                let rt= this.resources[type]   
+                let files= await readdir(rt.path);
+                // check resource count 
+                let fcount= (params.limit && files.length > params.limit) ? params.limit : files.length;
+                for( let f in files) {
+                    if(f>=fcount) { break }
+                    let uuid= this.utils.uuidPrefix + files[f];
+                    try {
+                        let res= JSON.parse(
+                            await readFile( path.join(rt.path, files[f]) , 'utf8')
+                        );
+                        // ** apply param filters **
+                        if( this.utils.passFilter(res, type, params) ) {
+                            result[uuid]= res;
+                            let stats:any = stat(path.join(rt.path, files[f]));
+                            result[uuid]['timestamp'] = stats.mtime;
+                            result[uuid]['$source'] = this.pkg.id;
+                        }
                     }
-                })  
+                    catch(err) {
+                        console.log(err);
+                        return {
+                            message: `Invalid file contents: ${files[f]}`,
+                            status: 400,
+                            error: true
+                        };	
+                    }
+                } 
                 return result;
             }
         }
